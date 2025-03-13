@@ -1,6 +1,6 @@
 # RCS Dashboard
 
-**RCS Dashboard** adalah aplikasi berbasis web yang dikembangkan untuk menganalisis dan memvisualisasikan indikator kesehatan masyarakat di Indonesia, dengan fokus pada data balita, ibu hamil, remaja putri, dan evaluasi program gizi berbasis masyarakat (EPPGBM). Aplikasi ini dibangun menggunakan **Streamlit** untuk antarmuka pengguna interaktif, **SQLite** sebagai basis data, dan pustaka visualisasi seperti **Plotly** dan **Matplotlib**. Proyek ini bertujuan untuk memberikan wawasan berbasis data kepada pemangku kepentingan di bidang kesehatan, khususnya Dinas Kesehatan dan Puskesmas.
+**RCS Dashboard** adalah aplikasi berbasis web yang dikembangkan untuk menganalisis dan memvisualisasikan indikator kesehatan masyarakat di Indonesia dengan basis data pada Platform SIGIZI-KESGA [SIGZI Web APP](https://sigizikesga.kemkes.go.id/login_sisfo/), dengan fokus pada data balita, ibu hamil, remaja putri, dan evaluasi program gizi berbasis masyarakat (EPPGBM). Aplikasi ini dibangun menggunakan **Streamlit** untuk antarmuka pengguna interaktif, **SQLite** sebagai basis data, dan pustaka visualisasi seperti **Plotly** dan **Matplotlib**. Proyek ini bertujuan untuk memberikan wawasan berbasis data kepada pemangku kepentingan di bidang kesehatan, khususnya Dinas Kesehatan dan Puskesmas.
 
 Proyek ini saat ini **on progress**, dengan beberapa modul sudah selesai dan di-deploy ke [Streamlit Community Cloud](https://streamlit.io/cloud), sementara modul lainnya masih dalam tahap pengembangan.
 
