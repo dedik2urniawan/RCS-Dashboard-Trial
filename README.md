@@ -120,7 +120,7 @@ rcs_dashboard/
 ## **Deployment**
 
 Aplikasi ini telah di-deploy ke **Streamlit Community Cloud** untuk uji coba. Akses di:  
-🔗 [RCS Dashboard](https://rcs-dashboard.streamlit.app/) *(Ganti dengan URL sebenarnya setelah deploy)*
+🔗 [RCS Dashboard](https://rcs-dashboard-trial.streamlit.app/) 
 
 ### **Status Deploy**
 - **Versi**: Trial deploy dengan fokus pada `dashboard_balita_gizi.py` dan `upload_data.py`.
