@@ -2,17 +2,17 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
-# 🔒 Fungsi simpan ke database
-def save_to_db(df, table_name):
+# 🔒 Fungsi simpan ke database dengan parameter db_path
+def save_to_db(df, table_name, db_path="rcs_data.db"):
     try:
-        conn = sqlite3.connect("rcs_data.db")
+        conn = sqlite3.connect(db_path)
         df.to_sql(table_name, conn, if_exists='replace', index=False)
         conn.close()
-        st.success(f"✅ Data berhasil disimpan di tabel: {table_name}")
+        st.success(f"✅ Data berhasil disimpan di tabel: {table_name} dalam {db_path}")
     except Exception as e:
         st.error(f"❌ Error saat menyimpan ke database: {e}")
 
-# 📤 Fungsi upload file
+# 📤 Fungsi upload file dengan logika database khusus
 def upload_file(indicator_name, table_name):
     st.subheader(f"📥 Upload Data - {indicator_name}")
     
@@ -66,7 +66,9 @@ def upload_file(indicator_name, table_name):
                 st.warning("⚠️ File kosong atau format tidak sesuai.")
                 return
 
-            save_to_db(df, table_name)
+            # Tentukan database berdasarkan indikator
+            db_path = "data_eppgbm.db" if table_name == "data_eppgbm" else "rcs_data.db"
+            save_to_db(df, table_name, db_path)
             st.success(f"✅ Data {indicator_name} berhasil di-upload!")
             st.dataframe(df.head())
         except Exception as e:
@@ -89,3 +91,7 @@ def show_upload_page():
 
     if selected_data:
         upload_file(selected_data, data_options[selected_data])
+
+# Jalankan aplikasi
+if __name__ == "__main__":
+    show_upload_page()
