@@ -162,7 +162,14 @@ def completeness_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
     fig_completeness.update_layout(xaxis_tickangle=-45, yaxis_title="Completeness Rate (%)", xaxis_title="Puskesmas",
                                  yaxis_range=[0, 110], title_x=0.5, height=500)
     st.plotly_chart(fig_completeness, key=f"completeness_chart_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
-
+    
+    # Detail kelengkapan per kolom (opsional)
+    if st.checkbox("🔍 Tampilkan Detail Kelengkapan per Kolom"):
+        completeness_per_col = filtered_df[completeness_columns].notna().mean() * 100
+        st.subheader("📋 Persentase Kelengkapan per Kolom")
+        col_data = [{"Kolom": col, "Kelengkapan (%)": f"{val:.2f}%"} 
+                   for col, val in completeness_per_col.items()]
+        st.dataframe(pd.DataFrame(col_data), use_container_width=True)
 # ----------------------------- #
 # 📊 Analisis Pertumbuhan & Perkembangan
 # ----------------------------- #
@@ -1283,9 +1290,9 @@ def show_dashboard():
         st.dataframe(filtered_df, use_container_width=True)
 
     # Menu sidebar
-    menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kualitas Feedback Data", "📈 Analisis Indikator Balita"])
+    menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
 
-    if menu == "📊 Kualitas Feedback Data":
+    if menu == "📊 Kelengkapan Data Laporan":
         sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
         if sub_menu == "✅ Compliance Rate":
             compliance_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
