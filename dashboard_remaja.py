@@ -208,7 +208,7 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
         "Jumlah_Rematri_kelas_10_Anemia_Sedang",
         "Jumlah_Rematri_kelas_10_Anemia_Berat",
         "Jumlah_Anemia_Rematri_Kelas_10",
-        "Jumlah_remaja_putri_kelas_7_dan_10_di_satuan_pendidikan_yang_teridentifikasi_anemia_",
+        "Jumlah_remaja_putri_kelas_7_10_teridentifikasi_anemia",
         "Jumlah_Rematri_kelas_7_dan_10_mendapatkan_tatalaksana_anemia"
     ]
 
