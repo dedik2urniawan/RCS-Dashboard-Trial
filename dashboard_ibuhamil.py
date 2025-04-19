@@ -280,16 +280,15 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
         st.dataframe(pd.DataFrame(col_data), use_container_width=True)
 
 # ----------------------------- #
-# 📈 Cakupan Layanan Kesehatan Ibu Hamil Anemia
+# 🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia
 # ----------------------------- #
-def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter):
+def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan"):
     """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil Anemia dengan fitur download laporan."""
     st.header("🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia")
-        # Tambahkan informasi definisi operasional dan insight analisis
-    with st.expander("📜 Definisi Operasional dan Insight Analisis Cakupan Layanan Kesehatan Ibu Hamil Anemia", expanded=False):
+
+    # Informasi definisi operasional (tetap sama, disingkat untuk fokus pada logika)
+    with st.expander("📜 Definisi Operasional dan Insight Analisis", expanded=False):
         st.markdown("""
-            <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
-            
             ### 📜 Definisi Operasional dan Analisis Indikator
 
             Berikut adalah definisi operasional, rumus perhitungan, serta analisis insight dari indikator-indikator yang digunakan untuk memantau cakupan layanan kesehatan ibu hamil dengan anemia. Rumus disajikan dalam format matematis untuk kejelasan, dengan penjelasan sederhana untuk memudahkan pemahaman.
@@ -352,6 +351,7 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
             </div>
         """, unsafe_allow_html=True)
 
+
     # Daftar kolom yang dibutuhkan
     required_columns = [
         'Jumlah_ibu_hamil_periksa_Hb',
@@ -366,13 +366,44 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
     # Cek apakah semua kolom ada
     missing_cols = [col for col in required_columns if col not in filtered_df.columns]
     if missing_cols:
-        st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_ibuhamil'!")
+        st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}")
         return
 
-    # Filter berdasarkan bulan jika ada
+    # Inisialisasi scope
     scope = filtered_df.copy()
-    if bulan_filter != "All":
-        scope = scope[scope['Bulan'] == int(bulan_filter)] if 'Bulan' in scope.columns and scope['Bulan'].dtype in [int, float, str] else scope
+
+    # Terapkan filter periode (Bulan atau Triwulan)
+    if periode_type == "Bulan" and periode_filter != "All":
+        try:
+            bulan_filter_int = int(periode_filter)
+            scope = scope[scope['Bulan'] == bulan_filter_int]
+        except ValueError:
+            st.warning("⚠️ Pilihan bulan tidak valid.")
+    elif periode_type == "Triwulan" and periode_filter != "All":
+        triwulan_map = {
+            "Triwulan 1": [1, 2, 3],
+            "Triwulan 2": [4, 5, 6],
+            "Triwulan 3": [7, 8, 9],
+            "Triwulan 4": [10, 11, 12]
+        }
+        bulan_triwulan = triwulan_map.get(periode_filter, [])
+        if bulan_triwulan:
+            scope = scope[scope['Bulan'].isin(bulan_triwulan)]
+
+    # Terapkan filter Puskesmas dan Kelurahan
+    if puskesmas_filter != "All":
+        scope = scope[scope['Puskesmas'] == puskesmas_filter]
+    if kelurahan_filter != "All":
+        scope = scope[scope['Kelurahan'] == kelurahan_filter]
+
+    # Agregasi data berdasarkan periode
+    group_cols = ['Puskesmas']
+    if puskesmas_filter != "All":
+        group_cols.append('Kelurahan')
+    if periode_type == "Triwulan" and periode_filter != "All":
+        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
+    elif periode_type == "Bulan" and periode_filter != "All":
+        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
 
     # Hitung total ibu hamil yang diperiksa Hb
     total_ibu_hamil = scope['Jumlah_ibu_hamil_periksa_Hb'].sum()
@@ -380,20 +411,29 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
         st.warning("⚠️ Tidak ada data ibu hamil yang diperiksa Hb untuk filter ini.")
         return
 
-    # Hitung metrik
+    # Hitung total untuk metrik baru
+    total_anemia_ringan = scope['Anemia_ringan'].sum()
+    total_anemia_sedang = scope['Anemia_sedang'].sum()
+    total_anemia_berat = scope['Anemia_berat'].sum()
+    total_ibu_hamil_anemia = scope['Jumlah_ibu_hamil_anemia'].sum()
+    total_ttd_oral = scope['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'].sum()
+    total_tata_laksana = scope['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'].sum()
+    total_anemia_sedang_berat = total_anemia_sedang + total_anemia_berat
+
+    # Hitung metrik dengan formula baru
     metrik_data = {
-        "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (scope['Anemia_ringan'].sum() / total_ibu_hamil * 100),
-        "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (scope['Anemia_sedang'].sum() / total_ibu_hamil * 100),
-        "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (scope['Anemia_berat'].sum() / total_ibu_hamil * 100),
-        "Metrik Prevalensi Ibu Hamil Anemia (%)": (scope['Jumlah_ibu_hamil_anemia'].sum() / total_ibu_hamil * 100),
-        "Metrik Ibu Hamil Anemia yang Mendapat TTD Oral (%)": (scope['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'].sum() / total_ibu_hamil * 100),
-        "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (scope['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'].sum() / total_ibu_hamil * 100)
+        "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (total_anemia_ringan / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
+        "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (total_anemia_sedang / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
+        "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (total_anemia_berat / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
+        "Metrik Prevalensi Ibu Hamil Anemia (%)": (total_ibu_hamil_anemia / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
+        "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (total_anemia_ringan / total_ttd_oral * 100) if total_ttd_oral > 0 else 0,
+        "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (total_tata_laksana / total_anemia_sedang_berat * 100) if total_anemia_sedang_berat > 0 else 0
     }
 
-    # Target
+    # Target (tetap sama)
     targets = {
         "Metrik Prevalensi Ibu Hamil Anemia (%)": 26,
-        "Metrik Ibu Hamil Anemia yang Mendapat TTD Oral (%)": 40,
+        "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": 40,
         "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": 40
     }
 
@@ -413,20 +453,20 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
                 if label == "Metrik Prevalensi Ibu Hamil Anemia (%)":
                     if value <= 26:
                         delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = "normal"  # Hijau
+                        delta_color = "normal"
                         delta_arrow = "↓"
                     else:
                         delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = "inverse"  # Merah
+                        delta_color = "inverse"
                         delta_arrow = "↑"
-                else:  # Untuk TTD Oral dan Tata Laksana
+                else:
                     if value >= 40:
                         delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = "normal"  # Hijau
+                        delta_color = "normal"
                         delta_arrow = "↑"
                     else:
                         delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = "inverse"  # Merah
+                        delta_color = "inverse"
                         delta_arrow = "↓"
                 cols1[i].metric(label=label, value=f"{value:.2f}%", delta=f"{delta_str} {delta_arrow}", delta_color=delta_color)
             else:
@@ -436,29 +476,28 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
     # Grafik 1: Prevalensi Anemia
     st.subheader("📈 Grafik Prevalensi Anemia Ibu Hamil")
     if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
+        grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia (%)": grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100
+            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
                       title="Prevalensi Anemia Ibu Hamil per Puskesmas", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
+        grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Prevalensi Ibu Hamil Anemia (%)": grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100
+            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
                       title=f"Prevalensi Anemia Ibu Hamil per Kelurahan di {puskesmas_filter}", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
-    # Tambahkan garis target 26%
     fig1.add_hline(y=26, line_dash="dash", line_color="red", annotation_text="Target Prevalensi Anemia (26%)", annotation_position="top right")
     fig1.update_traces(textposition='outside')
     fig1.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -469,25 +508,24 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
     # Grafik 2: Cakupan Layanan Anemia
     st.subheader("📈 Grafik Cakupan Layanan Ibu Hamil Anemia")
     if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
+        grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data2 = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Ibu Hamil Anemia yang Mendapat TTD Oral (%)": grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100
+            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (grouped_df['Anemia_sedang'] + grouped_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
                       title="Cakupan Layanan Ibu Hamil Anemia per Puskesmas", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
+        grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data2 = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Ibu Hamil Anemia yang Mendapat TTD Oral (%)": grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100,
-            "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100
+            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (grouped_df['Anemia_sedang'] + grouped_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
                       title=f"Cakupan Layanan Ibu Hamil Anemia per Kelurahan di {puskesmas_filter}", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
-    # Tambahkan garis target 40%
     fig2.add_hline(y=40, line_dash="dash", line_color="red", annotation_text="Target Layanan Anemia (40%)", annotation_position="top right")
     fig2.update_traces(textposition='outside')
     fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -497,52 +535,37 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
 
     # 3. Tabel Rekapitulasi
     st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil Anemia")
-    if puskesmas_filter == "All":
-        recap_df = scope.groupby('Puskesmas').sum().reset_index()
-    else:
-        recap_df = scope.groupby(['Puskesmas', 'Kelurahan']).sum().reset_index()
-
+    recap_df = scope.copy()
     recap_df['Metrik Prevalensi Ibu Hamil Anemia Ringan (%)'] = (recap_df['Anemia_ringan'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
     recap_df['Metrik Prevalensi Ibu Hamil Anemia Sedang (%)'] = (recap_df['Anemia_sedang'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
     recap_df['Metrik Prevalensi Ibu Hamil Anemia Berat (%)'] = (recap_df['Anemia_berat'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
     recap_df['Metrik Prevalensi Ibu Hamil Anemia (%)'] = (recap_df['Jumlah_ibu_hamil_anemia'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Anemia yang Mendapat TTD Oral (%)'] = (recap_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)'] = (recap_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)'] = (recap_df['Anemia_ringan'] / recap_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)'] = (recap_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (recap_df['Anemia_sedang'] + recap_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
 
     recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
     recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
     st.dataframe(recap_display, use_container_width=True)
 
-    # 4. Fitur Download Laporan PDF
+    # 4. Fitur Download Laporan PDF (tetap sama)
     st.subheader("📥 Unduh Laporan")
     def generate_pdf_report():
-        # Buat buffer untuk menyimpan grafik
         img_buffer1 = BytesIO()
         img_buffer2 = BytesIO()
         fig1.write_image(img_buffer1, format='png', width=600, height=400, scale=2)
         fig2.write_image(img_buffer2, format='png', width=600, height=400, scale=2)
         img_buffer1.seek(0)
         img_buffer2.seek(0)
-
-        # Buat buffer untuk PDF
         pdf_buffer = BytesIO()
-
-        # Buat dokumen PDF
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
         elements = []
-
-        # Gaya teks
         styles = getSampleStyleSheet()
         title_style = styles['Title']
         normal_style = styles['Normal']
         normal_style.textColor = colors.black
-
-        # Tambahkan judul
         elements.append(Paragraph("Laporan Cakupan Layanan Kesehatan Ibu Hamil Anemia", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
-
-        # Tambahkan Metrik
         elements.append(Paragraph("1. Metrik Cakupan Layanan", normal_style))
         metric_data = []
         for label, value in metrik_list:
@@ -577,16 +600,12 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
         ]))
         elements.append(metric_table)
         elements.append(Spacer(1, 12))
-
-        # Tambahkan Grafik
         elements.append(Paragraph("2. Grafik Prevalensi Anemia Ibu Hamil", normal_style))
         elements.append(Image(img_buffer1, width=500, height=300))
         elements.append(Spacer(1, 12))
         elements.append(Paragraph("3. Grafik Cakupan Layanan Ibu Hamil Anemia", normal_style))
         elements.append(Image(img_buffer2, width=500, height=300))
         elements.append(Spacer(1, 12))
-
-        # Tambahkan Tabel Rekapitulasi
         elements.append(Paragraph("4. Tabel Rekapitulasi", normal_style))
         table_data = [recap_display.columns.tolist()] + recap_display.values.tolist()
         recap_table = Table(table_data)
@@ -604,8 +623,6 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ]))
         elements.append(recap_table)
-
-        # Build PDF ke buffer
         doc.build(elements)
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
@@ -617,16 +634,18 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesm
         st.download_button(
             label="Download Laporan PDF",
             data=pdf_data,
-            file_name=f"Laporan_Cakupan_Layanan_Anemia_Ibu_Hamil_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            file_name=f"Laporan_Cakupan_Anemia_Ibu_Hamil_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             mime="application/pdf"
         )
+
 # ----------------------------- #
-# 📈 Cakupan Suplementasi Gizi Ibu Hamil
+# 📈 Cakupan Suplementasi Gizi Ibu Hamil (Perbaikan)
 # ----------------------------- #
-def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter):
+def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan"):
     """Menampilkan analisis Cakupan Suplementasi Gizi Ibu Hamil dengan fitur download laporan."""
     st.header("💊 Cakupan Suplementasi Gizi Ibu Hamil")
-        # Tambahkan informasi definisi operasional dan insight analisis
+
+    # Tambahkan informasi definisi operasional dan insight analisis
     with st.expander("📜 Definisi Operasional dan Insight Analisis Cakupan Suplementasi Gizi Ibu Hamil", expanded=False):
         st.markdown("""
             <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
@@ -695,10 +714,48 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_ibuhamil'!")
         return
 
-    # Filter berdasarkan bulan jika ada
+    # Inisialisasi scope
     scope = filtered_df.copy()
-    if bulan_filter != "All":
-        scope = scope[scope['Bulan'] == int(bulan_filter)] if 'Bulan' in scope.columns and scope['Bulan'].dtype in [int, float, str] else scope
+
+    # Validasi dan konversi kolom Bulan
+    if 'Bulan' in scope.columns:
+        scope['Bulan'] = pd.to_numeric(scope['Bulan'], errors='coerce').fillna(0).astype(int)
+    else:
+        st.error("⚠️ Kolom 'Bulan' tidak ditemukan di dataset!")
+        return
+
+    # Terapkan filter periode (Bulan atau Triwulan)
+    if periode_type == "Bulan" and periode_filter != "All":
+        try:
+            bulan_filter_int = int(periode_filter)
+            scope = scope[scope['Bulan'] == bulan_filter_int]
+        except ValueError:
+            st.warning("⚠️ Pilihan bulan tidak valid.")
+    elif periode_type == "Triwulan" and periode_filter != "All":
+        triwulan_map = {
+            "Triwulan 1": [1, 2, 3],
+            "Triwulan 2": [4, 5, 6],
+            "Triwulan 3": [7, 8, 9],
+            "Triwulan 4": [10, 11, 12]
+        }
+        bulan_triwulan = triwulan_map.get(periode_filter, [])
+        if bulan_triwulan:
+            scope = scope[scope['Bulan'].isin(bulan_triwulan)]
+
+    # Terapkan filter Puskesmas dan Kelurahan
+    if puskesmas_filter != "All":
+        scope = scope[scope['Puskesmas'] == puskesmas_filter]
+    if kelurahan_filter != "All":
+        scope = scope[scope['Kelurahan'] == kelurahan_filter]
+
+    # Agregasi data berdasarkan periode
+    group_cols = ['Puskesmas']
+    if puskesmas_filter != "All":
+        group_cols.append('Kelurahan')
+    if periode_type == "Triwulan" and periode_filter != "All":
+        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
+    elif periode_type == "Bulan" and periode_filter != "All":
+        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
 
     # Hitung total sasaran ibu hamil
     total_sasaran = scope['Jumlah_Sasaran_Ibu_Hamil'].sum()
@@ -708,10 +765,10 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
 
     # Hitung metrik
     metrik_data = {
-        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'].sum() / total_sasaran * 100),
-        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'].sum() / total_sasaran * 100),
-        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'].sum() / total_sasaran * 100),
-        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'].sum() / total_sasaran * 100)
+        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0,
+        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0,
+        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0,
+        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0
     }
 
     # Target
@@ -751,20 +808,20 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
     # Grafik 1: Cakupan Suplementasi MMS
     st.subheader("📈 Grafik Cakupan Suplementasi MMS Ibu Hamil")
     if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
+        grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data_mms = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100,
-            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100
+            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": (grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": (grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data_mms, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
                       title="Cakupan Suplementasi MMS Ibu Hamil per Puskesmas", text=graph_data_mms["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
+        grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data_mms = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100,
-            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100
+            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": (grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": (grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data_mms, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
                       title=f"Cakupan Suplementasi MMS Ibu Hamil per Kelurahan di {puskesmas_filter}", text=graph_data_mms["Persentase"].apply(lambda x: f"{x:.1f}%"))
@@ -782,20 +839,20 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
     # Grafik 2: Cakupan Suplementasi TTD
     st.subheader("📈 Grafik Cakupan Suplementasi TTD Ibu Hamil")
     if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
+        grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data_ttd = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100,
-            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100
+            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": (grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": (grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data_ttd, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
                       title="Cakupan Suplementasi TTD Ibu Hamil per Puskesmas", text=graph_data_ttd["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
+        grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data_ttd = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100,
-            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100
+            "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": (grouped_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": (grouped_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / grouped_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data_ttd, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
                       title=f"Cakupan Suplementasi TTD Ibu Hamil per Kelurahan di {puskesmas_filter}", text=graph_data_ttd["Persentase"].apply(lambda x: f"{x:.1f}%"))
@@ -812,15 +869,11 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
 
     # 3. Tabel Rekapitulasi
     st.subheader("📋 Tabel Rekapitulasi Cakupan Suplementasi Gizi Ibu Hamil")
-    if puskesmas_filter == "All":
-        recap_df = scope.groupby('Puskesmas').sum().reset_index()
-    else:
-        recap_df = scope.groupby(['Puskesmas', 'Kelurahan']).sum().reset_index()
-
-    recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)'] = (recap_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).fillna(0).round(2)
+    recap_df = scope.copy()
+    recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)'] = (recap_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
 
     recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
     recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
@@ -935,13 +988,13 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, pusk
         )
 
 # ----------------------------- #
-# 📉 Cakupan Layanan Kesehatan Ibu Hamil KEK
+# 📉 Cakupan Layanan Kesehatan Ibu Hamil KEK (Perbaikan Filter Triwulan)
 # ----------------------------- #
-def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter):
+def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan", laporan_type="Bulanan"):
     """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil KEK dengan fitur download laporan."""
     st.header("📉 Cakupan Layanan Kesehatan Ibu Hamil KEK")
 
-    # Tambahkan informasi definisi operasional dan insight analisis
+    # Tambahkan informasi definisi operasional dan insight analisis (tetap sama)
     with st.expander("📜 Definisi Operasional dan Insight Analisis Cakupan Layanan Kesehatan Ibu Hamil KEK", expanded=False):
         st.markdown("""
             <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
@@ -1001,23 +1054,22 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, 
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_ibuhamil'!")
         return
 
-    # Filter berdasarkan bulan jika ada
+    # Inisialisasi scope
     scope = filtered_df.copy()
-    if bulan_filter != "All":
-        scope = scope[scope['Bulan'] == int(bulan_filter)] if 'Bulan' in scope.columns and scope['Bulan'].dtype in [int, float, str] else scope
 
-    # Hitung total ibu hamil yang diukur LILA/IMT atau risiko KEK
-    total_diukur = scope['Jumlah_ibu_hamil_diukur_LILA_IMT'].sum()
-    total_risiko_kek = scope['Jumlah_ibu_hamil_risiko_KEK'].sum()
-    if total_diukur == 0 or total_risiko_kek == 0:
-        st.warning("⚠️ Tidak ada data ibu hamil yang diukur LILA/IMT atau berisiko KEK untuk filter ini.")
+    # Validasi dan konversi kolom Bulan
+    if 'Bulan' in scope.columns:
+        scope['Bulan'] = pd.to_numeric(scope['Bulan'], errors='coerce').fillna(0).astype(int)
+    else:
+        st.error("⚠️ Kolom 'Bulan' tidak ditemukan di dataset!")
         return
 
-    # Hitung metrik
-    metrik_data = {
-        "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (scope['Jumlah_ibu_hamil_risiko_KEK'].sum() / total_diukur * 100),
-        "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100),
-        "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (scope['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100)
+    # Definisikan triwulan
+    triwulan_map = {
+        "Triwulan 1": [1, 2, 3],
+        "Triwulan 2": [4, 5, 6],
+        "Triwulan 3": [7, 8, 9],
+        "Triwulan 4": [10, 11, 12]
     }
 
     # Target
@@ -1027,141 +1079,330 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, 
         "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": 83
     }
 
-    # 1. Metrik Score Card
-    st.subheader("📊 Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK")
-    metrik_list = list(metrik_data.items())
-    cols1 = st.columns(2)
-    for i in range(2):
-        for j in range(2):
-            idx = i * 2 + j
-            if idx >= len(metrik_list):
-                break
-            label, value = metrik_list[idx]
-            target = targets.get(label)
-            if target is not None:
-                gap = abs(value - target)
-                if label == "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)":
-                    if value < target:
-                        delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = "normal"  # Hijau (semakin kecil semakin baik)
-                        delta_arrow = "↓"
+    # List untuk menyimpan grafik dan tabel untuk PDF
+    all_figs_prev = []
+    all_figs_cakup = []
+    all_recap_dfs = []
+
+    # Proses data berdasarkan laporan_type
+    if laporan_type == "Tahunan":
+        triwulan_list = ["Triwulan 1", "Triwulan 2", "Triwulan 3", "Triwulan 4"]
+        for triwulan in triwulan_list:
+            st.subheader(f"📅 {triwulan}")
+            triwulan_scope = scope.copy()
+            bulan_range = triwulan_map[triwulan]
+            triwulan_scope = triwulan_scope[triwulan_scope['Bulan'].isin(bulan_range)]
+
+            # Terapkan filter Puskesmas dan Kelurahan
+            if puskesmas_filter != "All":
+                triwulan_scope = triwulan_scope[triwulan_scope['Puskesmas'] == puskesmas_filter]
+            if kelurahan_filter != "All":
+                triwulan_scope = triwulan_scope[triwulan_scope['Kelurahan'] == kelurahan_filter]
+
+            # Agregasi data
+            group_cols = ['Puskesmas']
+            if puskesmas_filter != "All":
+                group_cols.append('Kelurahan')
+            triwulan_scope = triwulan_scope.groupby(group_cols).sum(numeric_only=True).reset_index()
+
+            # Hitung total ibu hamil yang diukur LILA/IMT atau risiko KEK
+            total_diukur = triwulan_scope['Jumlah_ibu_hamil_diukur_LILA_IMT'].sum()
+            total_risiko_kek = triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'].sum()
+            if total_diukur == 0 or total_risiko_kek == 0:
+                st.warning(f"⚠️ Tidak ada data ibu hamil yang diukur LILA/IMT atau berisiko KEK untuk {triwulan}.")
+                continue
+
+            # Hitung metrik
+            metrik_data = {
+                "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'].sum() / total_diukur * 100) if total_diukur > 0 else 0,
+                "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (triwulan_scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0,
+                "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (triwulan_scope['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0
+            }
+
+            # 1. Metrik Score Card
+            st.subheader(f"📊 Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK - {triwulan}")
+            metrik_list = list(metrik_data.items())
+            cols1 = st.columns(2)
+            for i in range(2):
+                for j in range(2):
+                    idx = i * 2 + j
+                    if idx >= len(metrik_list):
+                        break
+                    label, value = metrik_list[idx]
+                    target = targets.get(label)
+                    if target is not None:
+                        gap = abs(value - target)
+                        if label == "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)":
+                            if value < target:
+                                delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                                delta_color = "normal"  # Hijau (semakin kecil semakin baik)
+                                delta_arrow = "↓"
+                            else:
+                                delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                                delta_color = "inverse"  # Merah
+                                delta_arrow = "↑"
+                        else:  # Untuk cakupan asupan gizi
+                            if value < target:
+                                delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                                delta_color = "inverse"  # Merah
+                                delta_arrow = "↓"
+                            else:
+                                delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                                delta_color = "normal"  # Hijau
+                                delta_arrow = "↑"
+                        cols1[i].metric(label=label, value=f"{value:.2f}%", delta=f"{delta_str} {delta_arrow}", delta_color=delta_color)
                     else:
-                        delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = "inverse"  # Merah
-                        delta_arrow = "↑"
-                else:  # Untuk cakupan asupan gizi
-                    if value < target:
-                        delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = "inverse"  # Merah
-                        delta_arrow = "↓"
-                    else:
-                        delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = "normal"  # Hijau
-                        delta_arrow = "↑"
-                cols1[i].metric(label=label, value=f"{value:.2f}%", delta=f"{delta_str} {delta_arrow}", delta_color=delta_color)
+                        cols1[i].metric(label=label, value=f"{value:.2f}%")
+
+            # 2. Grafik Visualisasi
+            # Grafik 1: Prevalensi Ibu Hamil KEK
+            st.subheader(f"📈 Grafik Prevalensi Ibu Hamil KEK - {triwulan}")
+            if puskesmas_filter == "All":
+                grouped_df = triwulan_scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+                graph_data_prev = pd.DataFrame({
+                    "Puskesmas": grouped_df['Puskesmas'],
+                    "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+                }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
+                fig1 = px.bar(graph_data_prev, x="Puskesmas", y="Persentase", color="Indikator", title=f"Prevalensi Ibu Hamil KEK per Puskesmas - {triwulan}", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
             else:
-                cols1[i].metric(label=label, value=f"{value:.2f}%")
+                grouped_df = triwulan_scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
+                graph_data_prev = pd.DataFrame({
+                    "Kelurahan": grouped_df['Kelurahan'],
+                    "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+                }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
+                fig1 = px.bar(graph_data_prev, x="Kelurahan", y="Persentase", color="Indikator", title=f"Prevalensi Ibu Hamil KEK per Kelurahan di {puskesmas_filter} - {triwulan}", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
 
-    # 2. Grafik Visualisasi
+            # Tambahkan garis target untuk prevalensi KEK
+            fig1.add_hline(y=15, line_dash="dash", line_color="#FF4040", annotation_text="Target Prevalensi KEK (15%)", annotation_position="top right")
+            fig1.update_traces(textposition='outside')
+            fig1.update_layout(
+                xaxis_tickangle=-45,
+                yaxis_title="Persentase (%)",
+                yaxis_range=[0, 100],
+                title_x=0.5,
+                height=500,
+                width=1000,
+                margin=dict(t=80, b=100, l=60, r=60),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.5,
+                    xanchor="center",
+                    x=0.5
+                )
+            )
+            st.plotly_chart(fig1, use_container_width=True)
+            all_figs_prev.append((triwulan, fig1))
+
+            # Grafik 2: Cakupan Layanan Ibu Hamil KEK
+            st.subheader(f"📈 Grafik Cakupan Layanan Ibu Hamil KEK - {triwulan}")
+            if puskesmas_filter == "All":
+                grouped_df = triwulan_scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+                graph_data_cakup = pd.DataFrame({
+                    "Puskesmas": grouped_df['Puskesmas'],
+                    "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+                    "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+                }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
+                fig2 = px.bar(graph_data_cakup, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
+                              title=f"Cakupan Layanan Ibu Hamil KEK per Puskesmas - {triwulan}", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
+            else:
+                grouped_df = triwulan_scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
+                graph_data_cakup = pd.DataFrame({
+                    "Kelurahan": grouped_df['Kelurahan'],
+                    "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+                    "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+                }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
+                fig2 = px.bar(graph_data_cakup, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
+                              title=f"Cakupan Layanan Ibu Hamil KEK per Kelurahan di {puskesmas_filter} - {triwulan}", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
+
+            # Tambahkan garis target untuk cakupan KEK
+            colors_cakup = px.colors.qualitative.Plotly[:2]
+            fig2.add_hline(y=84, line_dash="dash", line_color=colors_cakup[0], annotation_text="Target Mendapat Asupan (84%)", annotation_position="top right")
+            fig2.add_hline(y=83, line_dash="dash", line_color=colors_cakup[1], annotation_text="Target Mengonsumsi Asupan (83%)", annotation_position="top left")
+            fig2.update_traces(textposition='outside')
+            fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
+                               legend_title_text="Indikator", legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5),
+                               height=500)
+            st.plotly_chart(fig2, use_container_width=True)
+            all_figs_cakup.append((triwulan, fig2))
+
+            # 3. Tabel Rekapitulasi
+            st.subheader(f"📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil KEK - {triwulan}")
+            recap_df = triwulan_scope.copy()
+            recap_df['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (recap_df['Jumlah_ibu_hamil_risiko_KEK'] / recap_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+            recap_df['Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+            recap_df['Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+
+            recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
+            recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
+            st.dataframe(recap_display, use_container_width=True)
+            all_recap_dfs.append((triwulan, recap_display, metrik_data))
+
+    else:
+        # Proses untuk laporan Bulanan atau Triwulanan
+        # Filter periode (mengadopsi logika dari cakupan_layanan_anemia_ibu_hamil)
+        if periode_type == "Bulan" and periode_filter != "All":
+            try:
+                bulan_filter_int = int(periode_filter)
+                scope = scope[scope['Bulan'] == bulan_filter_int]
+            except ValueError:
+                st.warning("⚠️ Pilihan bulan tidak valid.")
+                return
+        elif periode_type == "Triwulan" and periode_filter != "All":
+            bulan_range = triwulan_map.get(periode_filter, [])
+            if bulan_range:
+                scope = scope[scope['Bulan'].isin(bulan_range)]
+
+        # Terapkan filter Puskesmas dan Kelurahan
+        if puskesmas_filter != "All":
+            scope = scope[scope['Puskesmas'] == puskesmas_filter]
+        if kelurahan_filter != "All":
+            scope = scope[scope['Kelurahan'] == kelurahan_filter]
+
+        # Agregasi data
+        group_cols = ['Puskesmas']
+        if puskesmas_filter != "All":
+            group_cols.append('Kelurahan')
+        if (periode_type == "Triwulan" or periode_type == "Bulan") and periode_filter != "All":
+            scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
+
+        # Hitung total ibu hamil yang diukur LILA/IMT atau risiko KEK
+        total_diukur = scope['Jumlah_ibu_hamil_diukur_LILA_IMT'].sum()
+        total_risiko_kek = scope['Jumlah_ibu_hamil_risiko_KEK'].sum()
+        if total_diukur == 0 or total_risiko_kek == 0:
+            st.warning("⚠️ Tidak ada data ibu hamil yang diukur LILA/IMT atau berisiko KEK untuk filter ini.")
+            return
+
+        # Hitung metrik
+        metrik_data = {
+            "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (scope['Jumlah_ibu_hamil_risiko_KEK'].sum() / total_diukur * 100) if total_diukur > 0 else 0,
+            "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0,
+            "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (scope['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0
+        }
+
+        # 1. Metrik Score Card
+        st.subheader("📊 Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK")
+        metrik_list = list(metrik_data.items())
+        cols1 = st.columns(2)
+        for i in range(2):
+            for j in range(2):
+                idx = i * 2 + j
+                if idx >= len(metrik_list):
+                    break
+                label, value = metrik_list[idx]
+                target = targets.get(label)
+                if target is not None:
+                    gap = abs(value - target)
+                    if label == "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)":
+                        if value < target:
+                            delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                            delta_color = "normal"  # Hijau (semakin kecil semakin baik)
+                            delta_arrow = "↓"
+                        else:
+                            delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                            delta_color = "inverse"  # Merah
+                            delta_arrow = "↑"
+                    else:  # Untuk cakupan asupan gizi
+                        if value < target:
+                            delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                            delta_color = "inverse"  # Merah
+                            delta_arrow = "↓"
+                        else:
+                            delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                            delta_color = "normal"  # Hijau
+                            delta_arrow = "↑"
+                    cols1[i].metric(label=label, value=f"{value:.2f}%", delta=f"{delta_str} {delta_arrow}", delta_color=delta_color)
+                else:
+                    cols1[i].metric(label=label, value=f"{value:.2f}%")
+
+        # 2. Grafik Visualisasi
         # Grafik 1: Prevalensi Ibu Hamil KEK
-    st.subheader("📈 Grafik Prevalensi Ibu Hamil KEK")
-    if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
-        graph_data_prev = pd.DataFrame({
-            "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100
-        }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
-        fig1 = px.bar(graph_data_prev, x="Puskesmas", y="Persentase", color="Indikator", title="Prevalensi Ibu Hamil KEK per Puskesmas", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
-    else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
-        graph_data_prev = pd.DataFrame({
-            "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100
-        }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
-        fig1 = px.bar(graph_data_prev, x="Kelurahan", y="Persentase", color="Indikator", title=f"Prevalensi Ibu Hamil KEK per Kelurahan di {puskesmas_filter}", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
+        st.subheader("📈 Grafik Prevalensi Ibu Hamil KEK")
+        if puskesmas_filter == "All":
+            grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+            graph_data_prev = pd.DataFrame({
+                "Puskesmas": grouped_df['Puskesmas'],
+                "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
+            fig1 = px.bar(graph_data_prev, x="Puskesmas", y="Persentase", color="Indikator", title="Prevalensi Ibu Hamil KEK per Puskesmas", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
+        else:
+            grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
+            graph_data_prev = pd.DataFrame({
+                "Kelurahan": grouped_df['Kelurahan'],
+                "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (grouped_df['Jumlah_ibu_hamil_risiko_KEK'] / grouped_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
+            fig1 = px.bar(graph_data_prev, x="Kelurahan", y="Persentase", color="Indikator", title=f"Prevalensi Ibu Hamil KEK per Kelurahan di {puskesmas_filter}", text=graph_data_prev["Persentase"].apply(lambda x: f"{x:.1f}%"), color_discrete_sequence=["#FF4040"])
 
-    # Tambahkan garis target untuk prevalensi KEK
-    fig1.add_hline(y=15, line_dash="dash", line_color="#FF4040", annotation_text="Target Prevalensi KEK (15%)", annotation_position="top right")
-    fig1.update_traces(textposition='outside')
-    fig1.update_layout(
-        xaxis_tickangle=-45,
-        yaxis_title="Persentase (%)",
-        yaxis_range=[0, 100],
-        title_x=0.5,
-        height=500,  # Meningkatkan tinggi sedikit untuk memberikan ruang
-        width=1000,
-        margin=dict(t=80, b=100, l=60, r=60),  # Menambahkan margin untuk mencegah tumpang tindih
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.5,  # Meningkatkan jarak legenda dari grafik
-            xanchor="center",
-            x=0.5
+        # Tambahkan garis target untuk prevalensi KEK
+        fig1.add_hline(y=15, line_dash="dash", line_color="#FF4040", annotation_text="Target Prevalensi KEK (15%)", annotation_position="top right")
+        fig1.update_traces(textposition='outside')
+        fig1.update_layout(
+            xaxis_tickangle=-45,
+            yaxis_title="Persentase (%)",
+            yaxis_range=[0, 100],
+            title_x=0.5,
+            height=500,
+            width=1000,
+            margin=dict(t=80, b=100, l=60, r=60),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.5,
+                xanchor="center",
+                x=0.5
+            )
         )
-    )
-    st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, use_container_width=True)
+        all_figs_prev.append(("Current", fig1))
 
-    # Grafik 2: Cakupan Layanan Ibu Hamil KEK
-    st.subheader("📈 Grafik Cakupan Layanan Ibu Hamil KEK")
-    if puskesmas_filter == "All":
-        grouped_df = scope.groupby('Puskesmas').sum().reset_index()
-        graph_data_cakup = pd.DataFrame({
-            "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100,
-            "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100
-        }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
-        fig2 = px.bar(graph_data_cakup, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                      title="Cakupan Layanan Ibu Hamil KEK per Puskesmas", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
-    else:
-        grouped_df = scope.groupby('Kelurahan').sum().reset_index()
-        graph_data_cakup = pd.DataFrame({
-            "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100,
-            "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100
-        }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
-        fig2 = px.bar(graph_data_cakup, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                      title=f"Cakupan Layanan Ibu Hamil KEK per Kelurahan di {puskesmas_filter}", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
+        # Grafik 2: Cakupan Layanan Ibu Hamil KEK
+        st.subheader("📈 Grafik Cakupan Layanan Ibu Hamil KEK")
+        if puskesmas_filter == "All":
+            grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+            graph_data_cakup = pd.DataFrame({
+                "Puskesmas": grouped_df['Puskesmas'],
+                "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+                "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
+            fig2 = px.bar(graph_data_cakup, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
+                          title="Cakupan Layanan Ibu Hamil KEK per Puskesmas", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
+        else:
+            grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
+            graph_data_cakup = pd.DataFrame({
+                "Kelurahan": grouped_df['Kelurahan'],
+                "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+                "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": (grouped_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / grouped_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
+            fig2 = px.bar(graph_data_cakup, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
+                          title=f"Cakupan Layanan Ibu Hamil KEK per Kelurahan di {puskesmas_filter}", text=graph_data_cakup["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
-    # Tambahkan garis target untuk cakupan KEK
-    colors_cakup = px.colors.qualitative.Plotly[:2]  # Ambil 2 warna dari Plotly untuk cakupan
-    fig2.add_hline(y=84, line_dash="dash", line_color=colors_cakup[0], annotation_text="Target Mendapat Asupan (84%)", annotation_position="top right")
-    fig2.add_hline(y=83, line_dash="dash", line_color=colors_cakup[1], annotation_text="Target Mengonsumsi Asupan (83%)", annotation_position="top left")
-    fig2.update_traces(textposition='outside')
-    fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
-                       legend_title_text="Indikator", legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5),
-                       height=500)
-    st.plotly_chart(fig2, use_container_width=True)
+        # Tambahkan garis target untuk cakupan KEK
+        colors_cakup = px.colors.qualitative.Plotly[:2]
+        fig2.add_hline(y=84, line_dash="dash", line_color=colors_cakup[0], annotation_text="Target Mendapat Asupan (84%)", annotation_position="top right")
+        fig2.add_hline(y=83, line_dash="dash", line_color=colors_cakup[1], annotation_text="Target Mengonsumsi Asupan (83%)", annotation_position="top left")
+        fig2.update_traces(textposition='outside')
+        fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
+                           legend_title_text="Indikator", legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5),
+                           height=500)
+        st.plotly_chart(fig2, use_container_width=True)
+        all_figs_cakup.append(("Current", fig2))
 
-    # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil KEK")
-    if puskesmas_filter == "All":
-        recap_df = scope.groupby('Puskesmas').sum().reset_index()
-    else:
-        recap_df = scope.groupby(['Puskesmas', 'Kelurahan']).sum().reset_index()
+        # 3. Tabel Rekapitulasi
+        st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil KEK")
+        recap_df = scope.copy()
+        recap_df['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (recap_df['Jumlah_ibu_hamil_risiko_KEK'] / recap_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+        recap_df['Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+        recap_df['Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
 
-    recap_df['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (recap_df['Jumlah_ibu_hamil_risiko_KEK'] / recap_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)'] = (recap_df['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / recap_df['Jumlah_ibu_hamil_risiko_KEK'] * 100).fillna(0).round(2)
-
-    recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
-    recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
-    st.dataframe(recap_display, use_container_width=True)
+        recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
+        recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
+        st.dataframe(recap_display, use_container_width=True)
+        all_recap_dfs.append(("Current", recap_display, metrik_data))
 
     # 4. Fitur Download Laporan PDF
     st.subheader("📥 Unduh Laporan")
     def generate_pdf_report():
-        # Buat buffer untuk menyimpan grafik
-        img_buffer1 = BytesIO()
-        img_buffer2 = BytesIO()
-        fig1.write_image(img_buffer1, format='png', width=600, height=400, scale=2)
-        fig2.write_image(img_buffer2, format='png', width=600, height=400, scale=2)
-        img_buffer1.seek(0)
-        img_buffer2.seek(0)
-
-        # Buat buffer untuk PDF
         pdf_buffer = BytesIO()
-
-        # Buat dokumen PDF
         doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
         elements = []
 
@@ -1176,78 +1417,90 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, 
         elements.append(Paragraph(f"Diperbarui: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
-        # Tambahkan Metrik
-        elements.append(Paragraph("1. Metrik Cakupan Layanan", normal_style))
-        metric_data = []
-        for label, value in metrik_list:
-            target = targets.get(label)
-            if target is not None:
-                gap = abs(value - target)
-                if label == "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)":
-                    if value < target:
-                        delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = colors.green
-                        delta_arrow = "↓"
+        # Tambahkan Metrik, Grafik, dan Tabel untuk setiap triwulan atau periode
+        for idx, (period, recap_display, metrik_data) in enumerate(all_recap_dfs):
+            # Tambahkan Metrik
+            elements.append(Paragraph(f"1.{idx + 1} Metrik Cakupan Layanan - {period}", normal_style))
+            metric_data = []
+            metrik_list = list(metrik_data.items())
+            for label, value in metrik_list:
+                target = targets.get(label)
+                if target is not None:
+                    gap = abs(value - target)
+                    if label == "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)":
+                        if value < target:
+                            delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                            delta_color = colors.green
+                            delta_arrow = "↓"
+                        else:
+                            delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                            delta_color = colors.red
+                            delta_arrow = "↑"
                     else:
-                        delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = colors.red
-                        delta_arrow = "↑"
+                        if value < target:
+                            delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
+                            delta_color = colors.red
+                            delta_arrow = "↓"
+                        else:
+                            delta_str = f"Diatas Target (gap: {gap:.2f}%)"
+                            delta_color = colors.green
+                            delta_arrow = "↑"
+                    metric_data.append([f"{label}: {value:.2f}%", f"({delta_str} {delta_arrow})", ""])
+                    metric_data[-1][2] = Paragraph(metric_data[-1][1], style=ParagraphStyle(name='Custom', textColor=delta_color))
                 else:
-                    if value < target:
-                        delta_str = f"Dibawah Target (gap: {gap:.2f}%)"
-                        delta_color = colors.red
-                        delta_arrow = "↓"
-                    else:
-                        delta_str = f"Diatas Target (gap: {gap:.2f}%)"
-                        delta_color = colors.green
-                        delta_arrow = "↑"
-                metric_data.append([f"{label}: {value:.2f}%", f"({delta_str} {delta_arrow})", ""])
-                metric_data[-1][2] = Paragraph(metric_data[-1][1], style=ParagraphStyle(name='Custom', textColor=delta_color))
-            else:
-                metric_data.append([f"{label}: {value:.2f}%", "", ""])
-        metric_table = Table(metric_data, colWidths=[300, 150, 50])
-        metric_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-        elements.append(metric_table)
-        elements.append(Spacer(1, 12))
+                    metric_data.append([f"{label}: {value:.2f}%", "", ""])
+            metric_table = Table(metric_data, colWidths=[300, 150, 50])
+            metric_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            elements.append(metric_table)
+            elements.append(Spacer(1, 12))
 
-        # Tambahkan Grafik
-        elements.append(Paragraph("2. Grafik Prevalensi Ibu Hamil KEK", normal_style))
-        elements.append(Image(img_buffer1, width=500, height=300))
-        elements.append(Spacer(1, 12))
-        elements.append(Paragraph("3. Grafik Cakupan Layanan Ibu Hamil KEK", normal_style))
-        elements.append(Image(img_buffer2, width=500, height=300))
-        elements.append(Spacer(1, 12))
+            # Tambahkan Grafik Prevalensi
+            elements.append(Paragraph(f"2.{idx + 1} Grafik Prevalensi Ibu Hamil KEK - {period}", normal_style))
+            img_buffer_prev = BytesIO()
+            all_figs_prev[idx][1].write_image(img_buffer_prev, format='png', width=600, height=400, scale=2)
+            img_buffer_prev.seek(0)
+            elements.append(Image(img_buffer_prev, width=500, height=300))
+            elements.append(Spacer(1, 12))
 
-        # Tambahkan Tabel Rekapitulasi
-        elements.append(Paragraph("4. Tabel Rekapitulasi", normal_style))
-        table_data = [recap_display.columns.tolist()] + recap_display.values.tolist()
-        recap_table = Table(table_data)
-        recap_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 10),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ]))
-        elements.append(recap_table)
+            # Tambahkan Grafik Cakupan
+            elements.append(Paragraph(f"3.{idx + 1} Grafik Cakupan Layanan Ibu Hamil KEK - {period}", normal_style))
+            img_buffer_cakup = BytesIO()
+            all_figs_cakup[idx][1].write_image(img_buffer_cakup, format='png', width=600, height=400, scale=2)
+            img_buffer_cakup.seek(0)
+            elements.append(Image(img_buffer_cakup, width=500, height=300))
+            elements.append(Spacer(1, 12))
+
+            # Tambahkan Tabel Rekapitulasi
+            elements.append(Paragraph(f"4.{idx + 1} Tabel Rekapitulasi - {period}", normal_style))
+            table_data = [recap_display.columns.tolist()] + recap_display.values.tolist()
+            recap_table = Table(table_data)
+            recap_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+                ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ]))
+            elements.append(recap_table)
+            elements.append(Spacer(1, 12))
 
         # Build PDF ke buffer
         doc.build(elements)
@@ -1264,7 +1517,6 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, 
             file_name=f"Laporan_Cakupan_Layanan_KEK_Ibu_Hamil_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             mime="application/pdf"
         )
-
 # ----------------------------- #
 # 🚀 Main Function
 # ----------------------------- #
@@ -1275,35 +1527,84 @@ def show_dashboard():
     st.markdown(f"**📅 Data terakhir diperbarui:** {last_upload_time}")
 
     df, desa_df = load_data()
-    if df is None:
+    if df is None or desa_df is None:
         st.error("❌ Gagal memuat data. Periksa database!")
+        return
+
+    # Validasi dan konversi kolom Tahun dan Bulan
+    if 'Tahun' in df.columns:
+        df['Tahun'] = pd.to_numeric(df['Tahun'], errors='coerce').fillna(0).astype(int)
+    else:
+        st.error("⚠️ Kolom 'Tahun' tidak ditemukan di dataset!")
+        return
+    if 'Bulan' in df.columns:
+        df['Bulan'] = pd.to_numeric(df['Bulan'], errors='coerce').fillna(0).astype(int)
+    else:
+        st.error("⚠️ Kolom 'Bulan' tidak ditemukan di dataset!")
         return
 
     # Sidebar untuk filter
     with st.sidebar.expander("🔎 Filter Data"):
-        bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist() if 'Bulan' in df.columns else [])
-        bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
+        # Filter Tahun
+        tahun_options = ["All"] + sorted(df['Tahun'].dropna().unique().astype(str).tolist())
+        tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
 
-        puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()))
+        # Filter Jenis Laporan
+        jenis_laporan = st.radio("📊 Jenis Laporan", ["Bulanan", "Tahunan"])
+
+        # Filter Bulan atau Triwulan
+        if jenis_laporan == "Bulanan":
+            bulan_options = ["All"] + [str(i) for i in range(1, 13)]
+            periode_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
+            periode_type = "Bulan"
+        else:  # Tahunan
+            triwulan_options = ["All", "Triwulan 1", "Triwulan 2", "Triwulan 3", "Triwulan 4"]
+            periode_filter = st.selectbox("📅 Pilih Triwulan", options=triwulan_options)
+            periode_type = "Triwulan"
+
+        # Filter Puskesmas
+        puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique().tolist()))
+        
+        # Filter Kelurahan
         kelurahan_options = ["All"]
         if puskesmas_filter != "All":
-            kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
+            kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique().tolist())
         kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
 
     # Inisialisasi filtered_df
     filtered_df = df.copy()
-    if bulan_filter != "All":
-        try:
-            bulan_filter_int = int(bulan_filter)
-            filtered_df = df[df["Bulan"] == bulan_filter_int] if 'Bulan' in df.columns and df['Bulan'].dtype in [int, float, str] else df
-        except ValueError:
-            st.error("⚠️ Pilihan bulan tidak valid. Menggunakan semua data.")
-            filtered_df = df.copy()
 
-    if puskesmas_filter != "All":
-        filtered_df = filtered_df[filtered_df["Puskesmas"] == puskesmas_filter]
-    if kelurahan_filter != "All":
-        filtered_df = filtered_df[filtered_df["Kelurahan"] == kelurahan_filter]
+    # Terapkan filter Tahun
+    if tahun_filter != "All":
+        try:
+            tahun_filter_int = int(tahun_filter)
+            filtered_df = filtered_df[filtered_df['Tahun'] == tahun_filter_int]
+        except ValueError:
+            st.warning("⚠️ Pilihan tahun tidak valid. Menampilkan semua data.")
+
+    # Terapkan filter Periode (Bulan atau Triwulan)
+    if periode_type == "Bulan" and periode_filter != "All":
+        try:
+            bulan_filter_int = int(periode_filter)
+            filtered_df = filtered_df[filtered_df['Bulan'] == bulan_filter_int]
+        except ValueError:
+            st.warning("⚠️ Pilihan bulan tidak valid. Menampilkan semua data.")
+    elif periode_type == "Triwulan" and periode_filter != "All":
+        triwulan_map = {
+            "Triwulan 1": [1, 2, 3],
+            "Triwulan 2": [4, 5, 6],
+            "Triwulan 3": [7, 8, 9],
+            "Triwulan 4": [10, 11, 12]
+        }
+        bulan_triwulan = triwulan_map.get(periode_filter, [])
+        if bulan_triwulan:
+            filtered_df = filtered_df[filtered_df['Bulan'].isin(bulan_triwulan)]
+
+    # Terapkan filter Puskesmas dan Kelurahan
+    if puskesmas_filter != "All" and 'Puskesmas' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Puskesmas'] == puskesmas_filter]
+    if kelurahan_filter != "All" and 'Kelurahan' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Kelurahan'] == kelurahan_filter]
 
     # Tampilkan data terfilter
     st.subheader("📝 Data Terfilter")
@@ -1312,16 +1613,15 @@ def show_dashboard():
     else:
         st.dataframe(filtered_df, use_container_width=True)
 
-    # Menu sidebar untuk analisis
+    # Menu sidebar untuk analisis (tetap sama)
     menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kelengkapan Data", "📈 Analisis Indikator Ibu Hamil"])
 
     if menu == "📊 Kelengkapan Data":
         sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
         if sub_menu == "✅ Compliance Rate":
-            compliance_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter)
+            compliance_rate(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
         elif sub_menu == "📋 Completeness Rate":
-            completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter)
-
+            completeness_rate(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
     elif menu == "📈 Analisis Indikator Ibu Hamil":
         sub_analisis = st.sidebar.radio("📊 Pilih Sub Analisis", [
             "🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia",
@@ -1329,19 +1629,14 @@ def show_dashboard():
             "📉 Cakupan Layanan Kesehatan Ibu Hamil KEK"
         ])
         if sub_analisis == "🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia":
-            cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter)
+            cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type)
         elif sub_analisis == "💊 Cakupan Suplementasi Gizi Ibu Hamil":
-            cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter)
+            cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
         elif sub_analisis == "📉 Cakupan Layanan Kesehatan Ibu Hamil KEK":
-            cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter)
-        else:
-            st.subheader(f"📊 {sub_analisis}")
-            st.info("🚧 Fitur ini masih dalam pengembangan. Segera hadir!")
+            cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
 
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
         'made with ❤️ by <a href="mailto:dedik2urniawan@gmail.com">dedik2urniawan@gmail.com</a>'
         '</p>', unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    show_dashboard()
