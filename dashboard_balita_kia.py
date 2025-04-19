@@ -186,12 +186,13 @@ def completeness_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
         col_data = [{"Kolom": col, "Kelengkapan (%)": f"{val:.2f}%"} 
                     for col, val in completeness_per_col.items()]
         st.dataframe(pd.DataFrame(col_data), use_container_width=True)
-def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+        
+def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Indikator Bayi Kecil dengan fitur download laporan menggunakan reportlab."""
     st.header("👶 Indikator Bayi Kecil")
+
     # Tambahkan info dengan tone akademik, rendering rumus, penjelasan untuk orang awam, dan background biru muda
     with st.expander("📜 Definisi dan Insight Analisis Indikator Bayi Kecil", expanded=False):
-        # Satukan seluruh konten dalam satu markdown dengan div untuk background
         st.markdown("""
             <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
             
@@ -205,7 +206,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
             $$ \\text{Persentase Bayi Prematur (\\%)} = \\frac{\\text{Jumlah bayi lahir dengan usia kehamilan < 37 minggu}}{\\text{Jumlah total bayi lahir hidup}} \\times 100 $$  
             - **Penjelasan Sederhana:** Rumus ini membagi jumlah bayi yang lahir prematur (usia kehamilan kurang dari 37 minggu) dengan total bayi lahir hidup, lalu dikalikan 100 untuk mendapatkan persentase.  
             - **Metode Pengumpulan Data:** Data dikumpulkan secara bulanan melalui pencatatan individu. Bayi dengan usia gestasi <37 minggu diklasifikasikan sebagai kasus prematur.  
-            - **Insight Analisis:** Tingkat kelahiran prematur yang tinggi dapat mengindikasikan adanya faktor risiko seperti malnutrisi ibu, infeksi selama kehamilan, atau akses terbatas terhadap layanan antenatal care (ANC). Persentase yang melebihi 10% (standar global WHO) menunjukkan perlunya intervensi intensif, seperti peningkatan edukasi ibu hamil dan akses ke fasilitas kesehatan primer.
+            - **Insight Analisis:** Tingkat kelahiran prematur yang tinggi dapat mengindikasikan adanya faktor risiko seperti malnutrisi ibu, infeksi selama kehamilan, atau akses terbatas terhadap layanan antenatal care (ANC). Persentase yang melebihi 11% (standar global WHO) menunjukkan perlunya intervensi intensif, seperti peningkatan edukasi ibu hamil dan akses ke fasilitas kesehatan primer.
 
             #### 2. Persentase Bayi dengan Berat Badan Lahir Rendah (BBLR)
             - **Definisi Operasional:** Persentase bayi yang lahir hidup dengan berat badan lahir kurang dari 2500 gram (<2500 gram) dalam suatu periode tertentu di wilayah kerja tertentu.  
@@ -213,7 +214,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
             $$ \\text{Persentase Bayi BBLR (\\%)} = \\frac{\\text{Jumlah bayi lahir hidup dengan berat badan < 2500 gram}}{\\text{Jumlah total bayi lahir hidup}} \\times 100 $$  
             - **Penjelasan Sederhana:** Rumus ini menghitung persentase bayi yang lahir dengan berat kurang dari 2500 gram dibandingkan dengan semua bayi lahir hidup, lalu dikalikan 100.  
             - **Metode Pengumpulan Data:** Pengukuran berat badan dilakukan segera setelah kelahiran, dengan pelaporan bulanan berdasarkan data individu.  
-            - **Insight Analisis:** Prevalensi BBLR yang tinggi (di atas 15% menurut standar WHO) dapat menjadi indikator adanya masalah gizi kronis pada ibu, seperti anemia atau asupan kalori yang tidak memadai selama kehamilan. Hal ini juga berkorelasi dengan risiko morbiditas neonatal, seperti infeksi dan gangguan pernapasan. Intervensi yang direkomendasikan meliputi suplementasi gizi ibu dan pemeriksaan kehamilan rutin.
+            - **Insight Analisis:** Prevalensi BBLR yang tinggi (di atas 5.8% menurut standar WHO) dapat menjadi indikator adanya masalah gizi kronis pada ibu, seperti anemia atau asupan kalori yang tidak memadai selama kehamilan. Hal ini juga berkorelasi dengan risiko morbiditas neonatal, seperti infeksi dan gangguan pernapasan. Intervensi yang direkomendasikan meliputi suplementasi gizi ibu dan pemeriksaan kehamilan rutin.
 
             #### 3. Persentase Panjang Bayi Lahir Rendah
             - **Definisi Operasional:** Persentase bayi lahir hidup dengan panjang badan lahir kurang dari 48 cm dalam suatu periode tertentu di wilayah kerja tertentu.  
@@ -237,7 +238,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
             $$ \\text{Persentase Bayi BBLR Mendapat Tata Laksana (\\%)} = \\frac{\\text{Jumlah bayi BBLR yang mendapat tata laksana standar}}{\\text{Jumlah total bayi baru lahir dengan BBLR}} \\times 100 $$  
             - **Penjelasan Sederhana:** Rumus ini menghitung persentase bayi BBLR yang mendapat perawatan khusus (seperti ASI dini atau kangaroo care) dibandingkan dengan total bayi BBLR, lalu dikalikan 100.  
             - **Metode Pengumpulan Data:** Tata laksana mencakup pemberian ASI dini, inisiasi kontak kulit-ke-kulit (kangaroo care), dan monitoring intensif. Data dikumpulkan secara kumulatif bulanan.  
-            - **Insight Analisis:** Persentase di bawah 80% menunjukkan adanya tantangan dalam kualitas pelayanan kesehatan neonatal, seperti kurangnya tenaga kesehatan terlatih atau fasilitas yang memadai. Peningkatan pelatihan tenaga kesehatan dan penyediaan fasilitas kangaroo care dapat meningkatkan angka ini, sehingga mengurangi risiko mortalitas dan morbiditas pada bayi BBLR.
+            - **Insight Analisis:** Persentase di bawah 35% menunjukkan adanya tantangan dalam kualitas pelayanan kesehatan neonatal, seperti kurangnya tenaga kesehatan terlatih atau fasilitas yang memadai. Peningkatan pelatihan tenaga kesehatan dan penyediaan fasilitas kangaroo care dapat meningkatkan angka ini, sehingga mengurangi risiko mortalitas dan morbiditas pada bayi BBLR.
 
             #### 6. Persentase Bayi BBLR yang Mendapat Buku KIA (Kesehatan Ibu dan Anak) Bayi Kecil
             - **Definisi Operasional:** Persentase bayi dengan berat badan lahir rendah yang menerima Buku KIA bayi kecil sebagai bagian dari layanan kesehatan ibu dan anak dalam suatu periode tertentu.  
@@ -245,10 +246,11 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
             $$ \\text{Persentase Bayi BBLR Mendapat Buku KIA (\\%)} = \\frac{\\text{Jumlah bayi BBLR yang mendapat Buku KIA}}{\\text{Jumlah total bayi baru lahir dengan BBLR}} \\times 100 $$  
             - **Penjelasan Sederhana:** Rumus ini menghitung persentase bayi BBLR yang mendapatkan Buku KIA dibandingkan dengan total bayi BBLR, lalu dikalikan 100.  
             - **Metode Pengumpulan Data:** Buku KIA berisi catatan pemantauan pertumbuhan dan intervensi spesifik untuk bayi kecil, dicatat secara bulanan berdasarkan data individu.  
-            - **Insight Analisis:** Persentase yang rendah (di bawah 90%) dapat mengindikasikan rendahnya implementasi program kesehatan ibu dan anak, yang berpotensi memengaruhi pemantauan jangka panjang bayi BBLR. Peningkatan distribusi Buku KIA dan edukasi kepada orang tua mengenai pentingnya pemantauan dapat membantu meningkatkan angka ini, sehingga mendukung perkembangan optimal bayi.
+            - **Insight Analisis:** Persentase yang rendah (di bawah 50%) dapat mengindikasikan rendahnya implementasi program kesehatan ibu dan anak, yang berpotensi memengaruhi pemantauan jangka panjang bayi BBLR. Peningkatan distribusi Buku KIA dan edukasi kepada orang tua mengenai pentingnya pemantauan dapat membantu meningkatkan angka ini, sehingga mendukung perkembangan optimal bayi.
 
             </div>
         """, unsafe_allow_html=True)
+
     # Daftar kolom yang dibutuhkan
     required_columns = [
         'Jumlah_bayi_baru_lahir_hidup',
@@ -265,6 +267,23 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
     if missing_cols:
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_balita_kia'!")
         return
+
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
+
+    # Agregasi data berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
     # Hitung indikator
     total_bayi = filtered_df['Jumlah_bayi_baru_lahir_hidup'].sum()
@@ -292,7 +311,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Indikator Bayi Kecil")
+    st.subheader(f"📊 Metrik Indikator Bayi Kecil ({periode_label})")
     indikator_list = list(indikator_data.items())
     cols1 = st.columns(3)
     for i in range(3):
@@ -349,29 +368,29 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
             cols2[i].metric(label=label, value=f"{value:.2f}%")
 
     # 2. Grafik Visualisasi
-    st.subheader("📈 Grafik Cakupan Bayi Kecil")
+    st.subheader(f"📈 Grafik Cakupan Bayi Kecil ({periode_label})")
     if puskesmas_filter == "All":
         grouped_df = filtered_df.groupby('Puskesmas').sum().reset_index()
         graph_data = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Cakupan Bayi Lahir Prematur (%)": grouped_df['Jumlah_bayi_lahir_37_minggu'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi BBLR (%)": grouped_df['Jumlah_bayi_BBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi PBLR (%)": grouped_df['Jumlah_Bayi_PBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi LIKA Rendah (%)": grouped_df['Jumlah_Bayi_LIKA_Rendah'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100
+            "Cakupan Bayi Lahir Prematur (%)": (grouped_df['Jumlah_bayi_lahir_37_minggu'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi BBLR (%)": (grouped_df['Jumlah_bayi_BBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi PBLR (%)": (grouped_df['Jumlah_Bayi_PBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi LIKA Rendah (%)": (grouped_df['Jumlah_Bayi_LIKA_Rendah'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                      title="Cakupan Bayi Kecil per Puskesmas", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Bayi Kecil per Puskesmas ({periode_label})", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
         grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
         graph_data = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Cakupan Bayi Lahir Prematur (%)": grouped_df['Jumlah_bayi_lahir_37_minggu'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi BBLR (%)": grouped_df['Jumlah_bayi_BBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi PBLR (%)": grouped_df['Jumlah_Bayi_PBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Bayi LIKA Rendah (%)": grouped_df['Jumlah_Bayi_LIKA_Rendah'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100
+            "Cakupan Bayi Lahir Prematur (%)": (grouped_df['Jumlah_bayi_lahir_37_minggu'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi BBLR (%)": (grouped_df['Jumlah_bayi_BBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi PBLR (%)": (grouped_df['Jumlah_Bayi_PBLR'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Bayi LIKA Rendah (%)": (grouped_df['Jumlah_Bayi_LIKA_Rendah'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                      title=f"Cakupan Bayi Kecil per Kelurahan di {puskesmas_filter}", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Bayi Kecil per Kelurahan di {puskesmas_filter} ({periode_label})", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
     fig1.update_traces(textposition='outside')
     fig1.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -379,25 +398,25 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
                        height=500)
     st.plotly_chart(fig1, use_container_width=True)
 
-    st.subheader("📈 Grafik Cakupan Tatalaksana Bayi Kecil")
+    st.subheader(f"📈 Grafik Cakupan Tatalaksana Bayi Kecil ({periode_label})")
     if puskesmas_filter == "All":
         grouped_df = filtered_df.groupby('Puskesmas').sum().reset_index()
         graph_data2 = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Cakupan Buku KIA (%)": grouped_df['Jumlah_bayi_prematur_dan_BBLR_yang_mendapat_buku_KIA_bayi_kecil'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Tatalaksana (%)": grouped_df['Jumlah_bayi_baru_lahir_dengan_BBLR_mendapat_tata_laksana'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100
+            "Cakupan Buku KIA (%)": (grouped_df['Jumlah_bayi_prematur_dan_BBLR_yang_mendapat_buku_KIA_bayi_kecil'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Tatalaksana (%)": (grouped_df['Jumlah_bayi_baru_lahir_dengan_BBLR_mendapat_tata_laksana'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                      title="Cakupan Tatalaksana Bayi Kecil per Puskesmas", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Tatalaksana Bayi Kecil per Puskesmas ({periode_label})", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
         grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
         graph_data2 = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Cakupan Buku KIA (%)": grouped_df['Jumlah_bayi_prematur_dan_BBLR_yang_mendapat_buku_KIA_bayi_kecil'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100,
-            "Cakupan Tatalaksana (%)": grouped_df['Jumlah_bayi_baru_lahir_dengan_BBLR_mendapat_tata_laksana'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100
+            "Cakupan Buku KIA (%)": (grouped_df['Jumlah_bayi_prematur_dan_BBLR_yang_mendapat_buku_KIA_bayi_kecil'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0),
+            "Cakupan Tatalaksana (%)": (grouped_df['Jumlah_bayi_baru_lahir_dengan_BBLR_mendapat_tata_laksana'] / grouped_df['Jumlah_bayi_baru_lahir_hidup'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                      title=f"Cakupan Tatalaksana Bayi Kecil per Kelurahan di {puskesmas_filter}", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Tatalaksana Bayi Kecil per Kelurahan di {puskesmas_filter} ({periode_label})", text=graph_data2["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
     fig2.update_traces(textposition='outside')
     fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -406,7 +425,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
     st.plotly_chart(fig2, use_container_width=True)
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Indikator Bayi Kecil")
+    st.subheader(f"📋 Tabel Rekapitulasi Indikator Bayi Kecil ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = filtered_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -448,7 +467,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Indikator Bayi Kecil", title_style))
+        elements.append(Paragraph(f"Laporan Indikator Bayi Kecil ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -537,7 +556,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
 # ----------------------------- #
 # 📈 Pemantauan Tumbuh Kembang Balita
 # ----------------------------- #
-def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Pemantauan Tumbuh Kembang Balita dengan fitur download laporan."""
     st.header("📈 Pemantauan Tumbuh Kembang Balita")
 
@@ -555,6 +574,23 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_balita_kia'!")
         return
 
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
+
+    # Agregasi data berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
+
     # Hitung total balita yang diskrining
     total_diskrining = filtered_df['Jumlah_balita_diskrining_perkembangan'].sum()
     if total_diskrining == 0:
@@ -569,7 +605,7 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Pemantauan Tumbuh Kembang Balita")
+    st.subheader(f"📊 Metrik Pemantauan Tumbuh Kembang Balita ({periode_label})")
     metrik_list = list(metrik_data.items())
     cols = st.columns(3)
     for i in range(3):
@@ -577,27 +613,27 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
         cols[i].metric(label=label, value=f"{value:.2f}%")
 
     # 2. Grafik Visualisasi
-    st.subheader("📈 Grafik Pemantauan Tumbuh Kembang Balita")
+    st.subheader(f"📈 Grafik Pemantauan Tumbuh Kembang Balita ({periode_label})")
     if puskesmas_filter == "All":
         grouped_df = filtered_df.groupby('Puskesmas').sum().reset_index()
         graph_data = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Balita dengan perkembangan normal (%)": grouped_df['Jumlah_balita_dengan_perkembangan_normal'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100,
-            "Metrik Balita dengan perkembangan meragukan (%)": grouped_df['Jumlah_balita_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100,
-            "Metrik Balita dengan kemungkinan penyimpangan (%)": grouped_df['Jumlah_balita_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100
+            "Metrik Balita dengan perkembangan normal (%)": (grouped_df['Jumlah_balita_dengan_perkembangan_normal'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Balita dengan perkembangan meragukan (%)": (grouped_df['Jumlah_balita_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Balita dengan kemungkinan penyimpangan (%)": (grouped_df['Jumlah_balita_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig = px.bar(graph_data, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                     title="Pemantauan Tumbuh Kembang Balita per Puskesmas", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                     title=f"Pemantauan Tumbuh Kembang Balita per Puskesmas ({periode_label})", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
         grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
         graph_data = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Balita dengan perkembangan normal (%)": grouped_df['Jumlah_balita_dengan_perkembangan_normal'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100,
-            "Metrik Balita dengan perkembangan meragukan (%)": grouped_df['Jumlah_balita_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100,
-            "Metrik Balita dengan kemungkinan penyimpangan (%)": grouped_df['Jumlah_balita_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100
+            "Metrik Balita dengan perkembangan normal (%)": (grouped_df['Jumlah_balita_dengan_perkembangan_normal'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Balita dengan perkembangan meragukan (%)": (grouped_df['Jumlah_balita_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Balita dengan kemungkinan penyimpangan (%)": (grouped_df['Jumlah_balita_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_balita_diskrining_perkembangan'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig = px.bar(graph_data, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                     title=f"Pemantauan Tumbuh Kembang Balita per Kelurahan di {puskesmas_filter}", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                     title=f"Pemantauan Tumbuh Kembang Balita per Kelurahan di {puskesmas_filter} ({periode_label})", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
     fig.update_traces(textposition='outside')
     fig.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -606,7 +642,7 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
     st.plotly_chart(fig, use_container_width=True)
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Pemantauan Tumbuh Kembang Balita")
+    st.subheader(f"📋 Tabel Rekapitulasi Pemantauan Tumbuh Kembang Balita ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = filtered_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -642,7 +678,7 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Pemantauan Tumbuh Kembang Balita", title_style))
+        elements.append(Paragraph(f"Laporan Pemantauan Tumbuh Kembang Balita ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -708,7 +744,7 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
 # ----------------------------- #
 # 📉 Pemantauan Tumbuh Kembang Apras (Anak Pra-Sekolah)
 # ----------------------------- #
-def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Pemantauan Tumbuh Kembang Anak Pra-Sekolah (Apras) dengan fitur download laporan."""
     st.header("📉 Pemantauan Tumbuh Kembang Apras (Anak Pra-Sekolah)")
 
@@ -728,6 +764,23 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
     if missing_cols:
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_balita_kia'!")
         return
+
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
+
+    # Agregasi data berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
     # Hitung total anak prasekolah bulan ini dan total diskrining
     total_apras = filtered_df['Jumlah_anak_prasekolah_bulan_ini'].sum()
@@ -750,7 +803,7 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Pemantauan Tumbuh Kembang Apras")
+    st.subheader(f"📊 Metrik Pemantauan Tumbuh Kembang Apras ({periode_label})")
     metrik_list = list(metrik_data.items())
     cols = st.columns(3)
     for i in range(3):
@@ -764,25 +817,25 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
 
     # 2. Grafik Visualisasi (Dibagi menjadi 2 grafik)
     # Grafik 1: Cakupan Layanan Apras
-    st.subheader("📈 Grafik Cakupan Layanan Apras")
+    st.subheader(f"📈 Grafik Cakupan Layanan Apras ({periode_label})")
     if puskesmas_filter == "All":
         grouped_df = filtered_df.groupby('Puskesmas').sum().reset_index()
         graph_data_cakupan = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Anak prasekolah ditimbang (%)": grouped_df['Jumlah_anak_prasekolah_ditimbang'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100,
-            "Metrik Anak prasekolah punya buku KIA (%)": grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+            "Metrik Anak prasekolah ditimbang (%)": (grouped_df['Jumlah_anak_prasekolah_ditimbang'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0),
+            "Metrik Anak prasekolah punya buku KIA (%)": (grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data_cakupan, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                      title="Cakupan Layanan Apras per Puskesmas", text=graph_data_cakupan["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Layanan Apras per Puskesmas ({periode_label})", text=graph_data_cakupan["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
         grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
         graph_data_cakupan = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Anak prasekolah ditimbang (%)": grouped_df['Jumlah_anak_prasekolah_ditimbang'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100,
-            "Metrik Anak prasekolah punya buku KIA (%)": grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+            "Metrik Anak prasekolah ditimbang (%)": (grouped_df['Jumlah_anak_prasekolah_ditimbang'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0),
+            "Metrik Anak prasekolah punya buku KIA (%)": (grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data_cakupan, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                      title=f"Cakupan Layanan Apras per Kelurahan di {puskesmas_filter}", text=graph_data_cakupan["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Cakupan Layanan Apras per Kelurahan di {puskesmas_filter} ({periode_label})", text=graph_data_cakupan["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
     fig1.update_traces(textposition='outside')
     fig1.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -791,27 +844,27 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
     st.plotly_chart(fig1, use_container_width=True)
 
     # Grafik 2: Pemantauan Tumbuh Kembang Apras
-    st.subheader("📈 Grafik Pemantauan Tumbuh Kembang Apras")
+    st.subheader(f"📈 Grafik Pemantauan Tumbuh Kembang Apras ({periode_label})")
     if puskesmas_filter == "All":
         grouped_df = filtered_df.groupby('Puskesmas').sum().reset_index()
         graph_data_pemantauan = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Anak prasekolah dengan perkembangan normal (%)": grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_normal'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100,
-            "Metrik Anak prasekolah dengan perkembangan meragukan (%)": grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100,
-            "Metrik Anak prasekolah dengan kemungkinan penyimpangan (%)": grouped_df['Jumlah_anak_prasekolah_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100
+            "Metrik Anak prasekolah dengan perkembangan normal (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_normal'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Anak prasekolah dengan perkembangan meragukan (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Anak prasekolah dengan kemungkinan penyimpangan (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data_pemantauan, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
-                      title="Pemantauan Tumbuh Kembang Apras per Puskesmas", text=graph_data_pemantauan["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Pemantauan Tumbuh Kembang Apras per Puskesmas ({periode_label})", text=graph_data_pemantauan["Persentase"].apply(lambda x: f"{x:.1f}%"))
     else:
         grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
         graph_data_pemantauan = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Anak prasekolah dengan perkembangan normal (%)": grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_normal'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100,
-            "Metrik Anak prasekolah dengan perkembangan meragukan (%)": grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100,
-            "Metrik Anak prasekolah dengan kemungkinan penyimpangan (%)": grouped_df['Jumlah_anak_prasekolah_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100
+            "Metrik Anak prasekolah dengan perkembangan normal (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_normal'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Anak prasekolah dengan perkembangan meragukan (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_perkembangan_meragukan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0),
+            "Metrik Anak prasekolah dengan kemungkinan penyimpangan (%)": (grouped_df['Jumlah_anak_prasekolah_dengan_kemungkinan_penyimpangan'] / grouped_df['Jumlah_anak_prasekolah_diskrining_perkembangan'] * 100).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data_pemantauan, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
-                      title=f"Pemantauan Tumbuh Kembang Apras per Kelurahan di {puskesmas_filter}", text=graph_data_pemantauan["Persentase"].apply(lambda x: f"{x:.1f}%"))
+                      title=f"Pemantauan Tumbuh Kembang Apras per Kelurahan di {puskesmas_filter} ({periode_label})", text=graph_data_pemantauan["Persentase"].apply(lambda x: f"{x:.1f}%"))
 
     fig2.update_traces(textposition='outside')
     fig2.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -820,7 +873,7 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
     st.plotly_chart(fig2, use_container_width=True)
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Pemantauan Tumbuh Kembang Apras")
+    st.subheader(f"📋 Tabel Rekapitulasi Pemantauan Tumbuh Kembang Apras ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = filtered_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -861,7 +914,7 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Pemantauan Tumbuh Kembang Apras", title_style))
+        elements.append(Paragraph(f"Laporan Pemantauan Tumbuh Kembang Apras ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -932,9 +985,18 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
 # ----------------------------- #
 # 🏥 Cakupan Layanan Kesehatan Balita
 # ----------------------------- #
-def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Cakupan Layanan Kesehatan Balita dengan fitur download laporan."""
     st.header("🏥 Cakupan Layanan Kesehatan Balita")
+
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
 
     # 1. Memuat data Jumlah_balita_punya_KIA dari data_balita_gizi
     try:
@@ -965,6 +1027,14 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
     # Pastikan tipe data Bulan sama
     filtered_df['Bulan'] = filtered_df['Bulan'].astype(int)
     gizi_df['Bulan'] = gizi_df['Bulan'].astype(int)
+
+    # Agregasi data berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
     # Gabungkan data dari data_balita_kia dengan data_balita_gizi
     merged_df = pd.merge(
@@ -1002,7 +1072,7 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Cakupan Layanan Kesehatan Balita")
+    st.subheader(f"📊 Metrik Cakupan Layanan Kesehatan Balita ({periode_label})")
     metrik_list = list(metrik_data.items())
     cols = st.columns(2)  # 2 kolom
     for i in range(2):
@@ -1014,7 +1084,7 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
         cols[i % 2].metric(label=label, value=f"{value:.2f}%")
 
     # 2. Grafik Visualisasi (5 grafik terpisah per metrik)
-    st.subheader("📈 Grafik Cakupan Layanan Kesehatan Balita")
+    st.subheader(f"📈 Grafik Cakupan Layanan Kesehatan Balita ({periode_label})")
     metrics = list(metrik_data.keys())
     figures_list = []  # Daftar untuk menyimpan semua objek fig
     for metric in metrics:
@@ -1023,59 +1093,59 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
             if metric == "Metrik Balita dipantau pertumbuhan dan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_balita_pantau_tumbang'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_pantau_tumbang'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita yang terdeteksi ada gangguan atau penyimpangan perkembangan yang mendapat intervensi (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_balita_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_balita_terdeteksi_gangguan_tumbang'] * 100
+                    metric: (grouped_df['Jumlah_balita_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_balita_terdeteksi_gangguan_tumbang'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita mendapat pelayanan SDIDTK di Fasyankes (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_balita_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik Balita yang Buku KIA nya terisi lengkap bagian pemantauan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_balita_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_balita_punya_KIA'] * 100
+                    metric: (grouped_df['Jumlah_balita_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_balita_punya_KIA'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita yang ibu/orangtua/wali/keluarga/pengasuh telah mengikuti minimal 4 (empat) kali kelas ibu balita (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_balita_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             fig = px.bar(graph_data, x="Puskesmas", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                         title=f"{metric} per Puskesmas", color_discrete_sequence=["#1E90FF"])
+                         title=f"{metric} per Puskesmas ({periode_label})", color_discrete_sequence=["#1E90FF"])
         else:
             grouped_df = merged_df.groupby('Kelurahan').sum().reset_index()
             if metric == "Metrik Balita dipantau pertumbuhan dan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_balita_pantau_tumbang'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_pantau_tumbang'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita yang terdeteksi ada gangguan atau penyimpangan perkembangan yang mendapat intervensi (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_balita_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_balita_terdeteksi_gangguan_tumbang'] * 100
+                    metric: (grouped_df['Jumlah_balita_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_balita_terdeteksi_gangguan_tumbang'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita mendapat pelayanan SDIDTK di Fasyankes (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_balita_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik Balita yang Buku KIA nya terisi lengkap bagian pemantauan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_balita_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_balita_punya_KIA'] * 100
+                    metric: (grouped_df['Jumlah_balita_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_balita_punya_KIA'] * 100).fillna(0)
                 })
             elif metric == "Metrik balita yang ibu/orangtua/wali/keluarga/pengasuh telah mengikuti minimal 4 (empat) kali kelas ibu balita (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_balita_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_balita_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_balita_usia_12-59_bulan_sampai_bulan_ini'] * 100).fillna(0)
                 })
             fig = px.bar(graph_data, x="Kelurahan", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                         title=f"{metric} per Kelurahan di {puskesmas_filter}", color_discrete_sequence=["#1E90FF"])
+                         title=f"{metric} per Kelurahan di {puskesmas_filter} ({periode_label})", color_discrete_sequence=["#1E90FF"])
 
         fig.update_traces(textposition='outside')
         fig.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -1084,7 +1154,7 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
         figures_list.append(fig)  # Simpan setiap fig ke daftar
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Balita")
+    st.subheader(f"📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Balita ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = merged_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -1125,7 +1195,7 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Cakupan Layanan Kesehatan Balita", title_style))
+        elements.append(Paragraph(f"Laporan Cakupan Layanan Kesehatan Balita ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -1192,9 +1262,18 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
 # ----------------------------- #
 # 🏡 Cakupan Layanan Kesehatan Apras
 # ----------------------------- #
-def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Cakupan Layanan Kesehatan Apras dengan fitur download laporan."""
     st.header("🏡 Cakupan Layanan Kesehatan Apras")
+
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
 
     # Daftar kolom yang dibutuhkan
     required_columns = [
@@ -1212,6 +1291,14 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
     if missing_cols:
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset: {missing_cols}. Periksa data di 'data_balita_kia'!")
         return
+
+    # Agregasi data berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
     # Hitung total Apras dan total terdeteksi gangguan
     total_apras = filtered_df['Jumlah_anak_prasekolah_bulan_ini'].sum()
@@ -1235,7 +1322,7 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Cakupan Layanan Kesehatan Apras")
+    st.subheader(f"📊 Metrik Cakupan Layanan Kesehatan Apras ({periode_label})")
     metrik_list = list(metrik_data.items())
     cols = st.columns(2)  # 2 kolom
     for i in range(2):
@@ -1247,7 +1334,7 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
         cols[i % 2].metric(label=label, value=f"{value:.2f}%")
 
     # 2. Grafik Visualisasi (4 grafik terpisah per metrik)
-    st.subheader("📈 Grafik Cakupan Layanan Kesehatan Apras")
+    st.subheader(f"📈 Grafik Cakupan Layanan Kesehatan Apras ({periode_label})")
     metrics = list(metrik_data.keys())
     figures_list = []  # Daftar untuk menyimpan semua objek fig
     for metric in metrics:
@@ -1256,49 +1343,49 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
             if metric == "Metrik Apras yang terdeteksi ada gangguan atau penyimpangan perkembangan yang mendapat intervensi (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_Apras_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_Apras_terdeteksi_gangguan_tumbang'] * 100
+                    metric: (grouped_df['Jumlah_Apras_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_Apras_terdeteksi_gangguan_tumbang'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras mendapat pelayanan SDIDTK di Fasyankes (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_Apras_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_Apras_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras yang Buku KIA nya terisi lengkap bagian pemantauan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_Apras_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] * 100
+                    metric: (grouped_df['Jumlah_Apras_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras yang ibu/orangtua/wali/keluarga/pengasuh telah mengikuti minimal 4 (empat) kali kelas ibu balita (%)":
                 graph_data = pd.DataFrame({
                     "Puskesmas": grouped_df['Puskesmas'],
-                    metric: grouped_df['Jumlah_Apras_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_Apras_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
                 })
             fig = px.bar(graph_data, x="Puskesmas", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                         title=f"{metric} per Puskesmas", color_discrete_sequence=["#32CD32"])
+                         title=f"{metric} per Puskesmas ({periode_label})", color_discrete_sequence=["#32CD32"])
         else:
             grouped_df = filtered_df.groupby('Kelurahan').sum().reset_index()
             if metric == "Metrik Apras yang terdeteksi ada gangguan atau penyimpangan perkembangan yang mendapat intervensi (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_Apras_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_Apras_terdeteksi_gangguan_tumbang'] * 100
+                    metric: (grouped_df['Jumlah_Apras_yang_terdeteksi_gangguan_tumbang_mendapat_intervensi'] / grouped_df['Jumlah_Apras_terdeteksi_gangguan_tumbang'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras mendapat pelayanan SDIDTK di Fasyankes (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_Apras_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_Apras_mendapat_pelayanan_SDIDTK_di_FKTP'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras yang Buku KIA nya terisi lengkap bagian pemantauan perkembangan (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_Apras_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] * 100
+                    metric: (grouped_df['Jumlah_Apras_Buku_KIA_terisi_lengkap_bagian_pemantauan_perkembangan'] / grouped_df['Jumlah_anak_prasekolah_punya_Buku_KIA'] * 100).fillna(0)
                 })
             elif metric == "Metrik Apras yang ibu/orangtua/wali/keluarga/pengasuh telah mengikuti minimal 4 (empat) kali kelas ibu balita (%)":
                 graph_data = pd.DataFrame({
                     "Kelurahan": grouped_df['Kelurahan'],
-                    metric: grouped_df['Jumlah_Apras_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100
+                    metric: (grouped_df['Jumlah_Apras_ortu_mengikuti_minimal_4_kali_kelas_ibu_balita'] / grouped_df['Jumlah_anak_prasekolah_bulan_ini'] * 100).fillna(0)
                 })
             fig = px.bar(graph_data, x="Kelurahan", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                         title=f"{metric} per Kelurahan di {puskesmas_filter}", color_discrete_sequence=["#32CD32"])
+                         title=f"{metric} per Kelurahan di {puskesmas_filter} ({periode_label})", color_discrete_sequence=["#32CD32"])
 
         fig.update_traces(textposition='outside')
         fig.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5,
@@ -1307,7 +1394,7 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
         figures_list.append(fig)  # Simpan setiap fig ke daftar
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Apras")
+    st.subheader(f"📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Apras ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = filtered_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -1347,7 +1434,7 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Cakupan Layanan Kesehatan Apras", title_style))
+        elements.append(Paragraph(f"Laporan Cakupan Layanan Kesehatan Apras ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -1414,9 +1501,18 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
 # ----------------------------- #
 # 🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)
 # ----------------------------- #
-def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
+def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int=None, tribulan_filter=None):
     """Menampilkan analisis Cakupan PKAT dengan fitur download laporan."""
     st.header("🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)")
+
+    # Inisialisasi periode untuk label
+    periode_label = ""
+    if tahun_filter != "All":
+        periode_label += f"Tahun {tahun_filter}"
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+    elif jenis_laporan == "Tahunan" and tribulan_filter:
+        periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
 
     # 1. Memuat data Jumlah_Bayi_usia_6_bulan dari data_balita_gizi
     try:
@@ -1434,22 +1530,57 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
         st.error(f"⚠️ Kolom berikut tidak ditemukan di dataset data_balita_kia: {missing_cols}.")
         return
 
-    # Gabungkan data dari data_balita_kia (filtered_df) dengan data_balita_gizi (gizi_df)
-    # Pastikan tipe data Bulan sama (konversi ke integer jika diperlukan)
-    filtered_df['Bulan'] = filtered_df['Bulan'].astype(int)
-    gizi_df['Bulan'] = gizi_df['Bulan'].astype(int)
+    # Agregasi filtered_df berdasarkan jenis laporan
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
-    # Gabungkan berdasarkan Kelurahan dan Bulan
-    merged_df = pd.merge(
-        filtered_df,
-        gizi_df[['Kelurahan', 'Bulan', 'Jumlah_Bayi_usia_6_bulan']],
-        on=['Kelurahan', 'Bulan'],
-        how='left'
-    )
+    # Agregasi gizi_df untuk laporan tahunan (Tribulan)
+    if jenis_laporan == "Tahunan" and tribulan_filter:
+        # Tentukan bulan berdasarkan tribulan
+        if tribulan_filter == "Tribulan I":
+            bulan_range = [1, 2, 3]
+        elif tribulan_filter == "Tribulan II":
+            bulan_range = [4, 5, 6]
+        elif tribulan_filter == "Tribulan III":
+            bulan_range = [7, 8, 9]
+        elif tribulan_filter == "Tribulan IV":
+            bulan_range = [10, 11, 12]
+        else:
+            st.error("⚠️ Tribulan tidak valid!")
+            return
+        # Filter gizi_df untuk bulan dalam tribulan
+        gizi_df = gizi_df[gizi_df['Bulan'].isin(bulan_range)]
+        # Agregasi gizi_df per Kelurahan
+        gizi_df = gizi_df.groupby('Kelurahan').agg({'Jumlah_Bayi_usia_6_bulan': 'sum'}).reset_index()
+
+    # Gabungkan data dari data_balita_kia (filtered_df) dengan data_balita_gizi (gizi_df)
+    if jenis_laporan == "Bulanan":
+        # Untuk bulanan, pastikan tipe data Bulan sama
+        filtered_df['Bulan'] = filtered_df['Bulan'].astype(int)
+        gizi_df['Bulan'] = gizi_df['Bulan'].astype(int)
+        # Gabungkan berdasarkan Kelurahan dan Bulan
+        merged_df = pd.merge(
+            filtered_df,
+            gizi_df[['Kelurahan', 'Bulan', 'Jumlah_Bayi_usia_6_bulan']],
+            on=['Kelurahan', 'Bulan'],
+            how='left'
+        )
+    else:
+        # Untuk tahunan, gabungkan hanya berdasarkan Kelurahan
+        merged_df = pd.merge(
+            filtered_df,
+            gizi_df[['Kelurahan', 'Jumlah_Bayi_usia_6_bulan']],
+            on='Kelurahan',
+            how='left'
+        )
 
     # Cek apakah ada data yang tidak match
     if merged_df['Jumlah_Bayi_usia_6_bulan'].isna().all():
-        st.warning("⚠️ Tidak ada data Jumlah_Bayi_usia_6_bulan yang cocok dengan filter Kelurahan dan Bulan. Periksa data di data_balita_gizi!")
+        st.warning("⚠️ Tidak ada data Jumlah_Bayi_usia_6_bulan yang cocok dengan filter Kelurahan. Periksa data di data_balita_gizi!")
         return
 
     # Hitung total
@@ -1466,32 +1597,32 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
     }
 
     # 1. Metrik Score Card
-    st.subheader("📊 Metrik Cakupan PKAT")
+    st.subheader(f"📊 Metrik Cakupan PKAT ({periode_label})")
     cols = st.columns(2)  # 2 kolom untuk konsistensi tata letak
     label, value = list(metrik_data.items())[0]
     cols[0].metric(label=label, value=f"{value:.2f}%")
     # Kolom kedua dibiarkan kosong untuk tata letak
 
     # 2. Grafik Visualisasi
-    st.subheader("📈 Grafik Cakupan PKAT")
+    st.subheader(f"📈 Grafik Cakupan PKAT ({periode_label})")
     metric = list(metrik_data.keys())[0]
     figures_list = []  # Daftar untuk menyimpan semua objek fig
     if puskesmas_filter == "All":
         grouped_df = merged_df.groupby('Puskesmas').sum().reset_index()
         graph_data = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            metric: grouped_df['Cakupan_bayi_dilayani_PKAT'] / grouped_df['Jumlah_Bayi_usia_6_bulan'] * 100
+            metric: (grouped_df['Cakupan_bayi_dilayani_PKAT'] / grouped_df['Jumlah_Bayi_usia_6_bulan'] * 100).fillna(0)
         })
         fig = px.bar(graph_data, x="Puskesmas", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                     title=f"{metric} per Puskesmas", color_discrete_sequence=["#FF4500"])
+                     title=f"{metric} per Puskesmas ({periode_label})", color_discrete_sequence=["#FF4500"])
     else:
         grouped_df = merged_df.groupby('Kelurahan').sum().reset_index()
         graph_data = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            metric: grouped_df['Cakupan_bayi_dilayani_PKAT'] / grouped_df['Jumlah_Bayi_usia_6_bulan'] * 100
+            metric: (grouped_df['Cakupan_bayi_dilayani_PKAT'] / grouped_df['Jumlah_Bayi_usia_6_bulan'] * 100).fillna(0)
         })
         fig = px.bar(graph_data, x="Kelurahan", y=metric, text=graph_data[metric].apply(lambda x: f"{x:.1f}%"),
-                     title=f"{metric} per Kelurahan di {puskesmas_filter}", color_discrete_sequence=["#FF4500"])
+                     title=f"{metric} per Kelurahan di {puskesmas_filter} ({periode_label})", color_discrete_sequence=["#FF4500"])
 
     fig.update_traces(textposition='outside')
     fig.update_layout(xaxis_tickangle=-45, yaxis_title="Persentase (%)", yaxis_range=[0, 100], title_x=0.5, height=400)
@@ -1499,7 +1630,7 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
     figures_list.append(fig)
 
     # 3. Tabel Rekapitulasi
-    st.subheader("📋 Tabel Rekapitulasi Cakupan PKAT")
+    st.subheader(f"📋 Tabel Rekapitulasi Cakupan PKAT ({periode_label})")
     if puskesmas_filter == "All":
         recap_df = merged_df.groupby('Puskesmas').sum().reset_index()
     else:
@@ -1542,7 +1673,7 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
         normal_style.textColor = colors.black
 
         # Tambahkan judul
-        elements.append(Paragraph("Laporan Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)", title_style))
+        elements.append(Paragraph(f"Laporan Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi) ({periode_label})", title_style))
         elements.append(Paragraph(f"Diperbarui: {datetime.now().strftime('%Y-%m-%d %H:%M')}", normal_style))
         elements.append(Spacer(1, 12))
 
@@ -1605,7 +1736,6 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
             file_name=f"Laporan_Cakupan_PKAT_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
             mime="application/pdf"
         )
-
 # ----------------------------- #
 # 🚀 Main Function
 # ----------------------------- #
@@ -1615,54 +1745,147 @@ def show_dashboard():
     last_upload_time = get_last_upload_time()
     st.markdown(f"**📅 Data terakhir diperbarui:** {last_upload_time}")
 
+    # Muat data
     df, desa_df = load_data()
-    if df is None:
-        st.error("❌ Gagal memuat data. Periksa database!")
+    if df is None or desa_df is None:
+        st.error("❌ Gagal memuat data. Pastikan file 'rcs_data.db' tersedia dan tabel 'data_balita_kia' serta 'dataset_desa' valid.")
         return
-    
-    # Debug: Tampilkan kolom untuk verifikasi
-    debug_mode = st.checkbox("Aktifkan Mode Debug", value=False)
-    if debug_mode:
-        st.write("Kolom di df:", df.columns.tolist())
+
+    # Validasi kolom wajib
+    required_columns = ["Puskesmas", "Kelurahan"]
+    missing_cols = [col for col in required_columns if col not in df.columns]
+    if missing_cols:
+        st.error(f"⚠️ Kolom wajib berikut tidak ditemukan di dataset: {missing_cols}. Periksa tabel 'data_balita_kia'.")
+        return
+
+    # Tentukan opsi tahun secara fleksibel
+    if "Tahun" in df.columns:
+        tahun_options = ["All"] + sorted(df['Tahun'].astype(str).unique().tolist())
+    else:
+        st.warning("⚠️ Kolom 'Tahun' tidak ditemukan. Menggunakan rentang tahun default (5 tahun terakhir).")
+        current_year = datetime.now().year
+        tahun_options = ["All"] + [str(y) for y in range(current_year - 4, current_year + 1)]
 
     # Sidebar untuk filter
-    with st.sidebar.expander("🔎 Filter Data"):
-        bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist() if 'Bulan' in df.columns else [])
-        bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
+    with st.sidebar:
+        st.header("🔎 Filter Data")
+        with st.container():
+            # Filter Tahun
+            tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options, help="Pilih tahun untuk analisis atau 'All' untuk semua tahun.")
 
-        puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()))
-        kelurahan_options = ["All"]
-        if puskesmas_filter != "All":
-            kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
-        kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
+            # Filter Jenis Laporan
+            jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Bulanan", "Tahunan"], help="Pilih jenis laporan: Bulanan atau Tahunan.")
+
+            # Inisialisasi variabel untuk filter bulan/tribulan
+            bulan_filter_int = None
+            tribulan_filter = None
+            bulan_range = None
+
+            # Filter Bulan untuk Bulanan, Tribulan untuk Tahunan
+            if jenis_laporan == "Bulanan":
+                if "Bulan" in df.columns:
+                    bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist())
+                else:
+                    st.warning("⚠️ Kolom 'Bulan' tidak ditemukan. Filter bulan dinonaktifkan.")
+                    bulan_options = ["All"]
+                bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options, help="Pilih bulan untuk laporan bulanan atau 'All'.")
+                if bulan_filter != "All":
+                    try:
+                        bulan_filter_int = int(bulan_filter)
+                        if bulan_filter_int < 1 or bulan_filter_int > 12:
+                            st.error("⚠️ Bulan harus antara 1 dan 12.")
+                            bulan_filter_int = None
+                    except ValueError:
+                        st.error("⚠️ Pilihan bulan tidak valid (harus berupa angka).")
+                        bulan_filter_int = None
+            else:  # Tahunan
+                tribulan_options = ["Tribulan I", "Tribulan II", "Tribulan III", "Tribulan IV"]
+                tribulan_filter = st.selectbox("📅 Pilih Tribulan", options=tribulan_options, help="Pilih tribulan untuk laporan tahunan.")
+                # Tentukan rentang bulan berdasarkan tribulan
+                if tribulan_filter == "Tribulan I":
+                    bulan_range = [1, 2, 3]
+                elif tribulan_filter == "Tribulan II":
+                    bulan_range = [4, 5, 6]
+                elif tribulan_filter == "Tribulan III":
+                    bulan_range = [7, 8, 9]
+                elif tribulan_filter == "Tribulan IV":
+                    bulan_range = [10, 11, 12]
+
+            # Filter Puskesmas dan Kelurahan
+            puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()), help="Pilih Puskesmas atau 'All'.")
+            kelurahan_options = ["All"]
+            if puskesmas_filter != "All":
+                kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
+            kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options, help="Pilih Kelurahan atau 'All'.")
+
+            # Tombol Reset Filter
+            if st.button("🔄 Reset Filter"):
+                st.rerun()
 
     # Inisialisasi filtered_df
     filtered_df = df.copy()
-    bulan_filter_int = None
-    if bulan_filter != "All":
+    periode_label = ""
+
+    # Terapkan filter tahun
+    if tahun_filter != "All":
         try:
-            bulan_filter_int = int(bulan_filter)
-            filtered_df = df[df["Bulan"] == bulan_filter_int] if 'Bulan' in df.columns else df
+            tahun_filter_int = int(tahun_filter)
+            if "Tahun" in filtered_df.columns:
+                filtered_df = filtered_df[filtered_df["Tahun"] == tahun_filter_int]
+                periode_label += f"Tahun {tahun_filter}"
+            else:
+                st.warning("⚠️ Tidak dapat memfilter tahun karena kolom 'Tahun' tidak ada.")
         except ValueError:
-            st.error("⚠️ Pilihan bulan tidak valid. Menggunakan semua data.")
+            st.error("⚠️ Pilihan tahun tidak valid.")
             filtered_df = df.copy()
 
+    # Terapkan filter berdasarkan jenis laporan
+    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
+        if "Bulan" in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df["Bulan"] == bulan_filter_int]
+            periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+        else:
+            st.warning("⚠️ Tidak dapat memfilter bulan karena kolom 'Bulan' tidak ada.")
+    elif jenis_laporan == "Tahunan" and tribulan_filter is not None:
+        if bulan_range is not None and "Bulan" in filtered_df.columns:
+            available_months = df["Bulan"].unique()
+            if not set(bulan_range).intersection(available_months):
+                st.warning(f"⚠️ Tidak ada data untuk {tribulan_filter}. Dataset hanya tersedia untuk bulan {sorted(available_months)}.")
+                filtered_df = pd.DataFrame()
+            else:
+                filtered_df = filtered_df[filtered_df["Bulan"].isin(bulan_range)]
+                periode_label += f" {tribulan_filter}" if periode_label else tribulan_filter
+        else:
+            st.warning("⚠️ Tidak dapat memfilter tribulan karena kolom 'Bulan' tidak ada.")
+
+    # Terapkan filter Puskesmas dan Kelurahan
     if puskesmas_filter != "All":
         filtered_df = filtered_df[filtered_df["Puskesmas"] == puskesmas_filter]
     if kelurahan_filter != "All":
         filtered_df = filtered_df[filtered_df["Kelurahan"] == kelurahan_filter]
 
+    # Jika Laporan Tahunan, lakukan agregasi sum
+    if jenis_laporan == "Tahunan" and not filtered_df.empty:
+        group_columns = ["Puskesmas", "Kelurahan"]
+        numeric_columns = [col for col in filtered_df.columns if filtered_df[col].dtype in ['int64', 'float64']]
+        if numeric_columns:
+            agg_dict = {col: "sum" for col in numeric_columns}
+            filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
+
     # Tampilkan data terfilter
-    st.subheader("📝 Data Terfilter")
+    st.subheader(f"📝 Data Terfilter ({periode_label})")
     if filtered_df.empty:
-        st.warning("⚠️ Tidak ada data yang sesuai dengan filter.")
+        st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih.")
     else:
         st.dataframe(filtered_df, use_container_width=True)
+        st.caption(f"Jumlah baris data: {len(filtered_df)}")
 
     # Menu sidebar untuk analisis
-    menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kelengkapan Data", "📈 Analisis Indikator Balita"])
+    with st.sidebar:
+        st.header("📂 Pilih Analisis")
+        menu = st.radio("Pilih Dashboard", ["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
 
-    if menu == "📊 Kelengkapan Data":
+    if menu == "📊 Kelengkapan Data Laporan":
         sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
         if sub_menu == "✅ Compliance Rate":
             compliance_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
@@ -1678,25 +1901,24 @@ def show_dashboard():
             "🏡 Cakupan Layanan Kesehatan Apras",
             "🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)"
         ])
+        # Teruskan parameter filter yang relevan
         if sub_analisis == "👶 Indikator Bayi Kecil":
-            indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         elif sub_analisis == "📈 Pemantauan Tumbuh Kembang Balita":
-            pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         elif sub_analisis == "📉 Pemantauan Tumbuh Kembang Apras":
-            pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         elif sub_analisis == "🏥 Cakupan Layanan Kesehatan Balita":
-            cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         elif sub_analisis == "🏡 Cakupan Layanan Kesehatan Apras":
-            cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         elif sub_analisis == "🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)":
-            cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
+            cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
         else:
             st.subheader(f"📊 {sub_analisis}")
-            st.info("🚧 Fitur ini masih dalam pengembangan. Segera hadir!")
+            st.info("🚧 Fitur ini belum diperbarui untuk mendukung filter baru. Segera hadir!")
+
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
         'made with ❤️ by <a href="mailto:dedik2urniawan@gmail.com">dedik2urniawan@gmail.com</a>'
         '</p>', unsafe_allow_html=True)
-
-if __name__ == "__main__":
-    show_dashboard()
