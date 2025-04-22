@@ -11,359 +11,608 @@ from datetime import datetime
 import numpy as np
 from scipy.stats import norm
 
-# Fungsi untuk menampilkan Informasi Data EPPGBM
-def show_info_data_eppgbm(df):
-    st.subheader("📋 Informasi Data EPPGBM: Latar Belakang dan Konteks Analisis")
-    st.markdown("""
-        <div style="background-color: #F9F9F9; padding: 20px; border-radius: 10px; border-left: 6px solid #1976D2; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-            <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
-                Analisis EPPGBM (Elektronik Pencatatan dan Pelaporan Gizi Berbasis Masyarakat) dalam dashboard ini disusun berdasarkan data yang diperoleh dari aplikasi 
-                <a href="https://sigizikesga.kemkes.go.id/login_sisfo/" target="_blank" style="color: #1976D2; text-decoration: underline; font-weight: bold;">SIGIZI-KESGA</a>. 
-                Sumber data utama berasal dari upaya pengumpulan yang dilakukan oleh para kader kesehatan di 390 desa, yang tersebar di bawah koordinasi 39 Puskesmas di wilayah Kabupaten Malang. 
-                Proses pengumpulan ini dilakukan di bawah pengawasan Dinas Kesehatan Kabupaten Malang, memastikan representasi data yang luas dan relevan.
-            </p>
-            <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
-                Data yang digunakan telah melalui proses verifikasi bertahap yang ketat, melibatkan tim Penanggung Jawab (PJ) Kesehatan Desa hingga tingkat Puskesmas. 
-                Platform SIGIZI-KESGA telah menerapkan mekanisme perbaikan data secara sistemik, termasuk deteksi outlier melalui analisis otomatis, guna menjamin akurasi dan keandalan informasi yang disajikan. 
-                Fitur analisis ini saat ini difokuskan pada data pengukuran dari dua periode utama, yaitu bulan Februari dan Agustus, yang mencerminkan data aktual hasil penimbangan serta proyeksi target 
-                Indikator Kinerja Utama (IKU) Pemerintah Kabupaten Malang.
-            </p>
-            <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
-                Analisis EPPGBM dirancang untuk memberikan wawasan mendalam mengenai pertumbuhan anak, dengan cakupan yang mencakup empat aspek utama:  
-                1. <strong style="color: #1976D2;">Distribusi Data EPPGBM</strong>: Menyajikan gambaran distribusi data pertumbuhan secara keseluruhan.  
-                2. <strong style="color: #1976D2;">Distribusi Z-Score Analysis</strong>: Menganalisis distribusi nilai Z-score untuk menilai status gizi.  
-                3. <strong style="color: #1976D2;">Analisis Z-Score Flag</strong>: Mengidentifikasi data yang memerlukan perhatian khusus berdasarkan flag Z-score.  
-                4. <strong style="color: #1976D2;">Analisis Trend Pertumbuhan EPPGBM</strong>: Melacak perkembangan pertumbuhan anak secara longitudinal.  
-                Dengan pendekatan ini, dashboard EPPGBM bertujuan menjadi alat strategis bagi pengambil keputusan di tingkat lokal untuk memantau, mengevaluasi, dan meningkatkan program kesehatan masyarakat.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
-    st.subheader("📄 Data EPPGBM")
-    st.dataframe(df, use_container_width=True)
+# Fungsi untuk menghitung prevalensi stunting
+def calculate_prevalensi_stunting(df_grouped):
+    total_balita = df_grouped.shape[0]
+    if total_balita == 0:
+        return 0
+    stunting_count = df_grouped[df_grouped["ZS_TBU"] < -2].shape[0]
+    return (stunting_count / total_balita) * 100
 
-    # Pastikan kolom Z-Score yang diperlukan ada
-    required_zscore_columns = ["ZS_BBU", "ZS_TBU", "ZS_BBTB"]
-    missing_zscore_columns = [col for col in required_zscore_columns if col not in df.columns]
-    if missing_zscore_columns:
-        st.error(f"Kolom Z-Score berikut tidak ditemukan di dataset: {', '.join(missing_zscore_columns)}. Silakan periksa data.")
-        return
+# Fungsi untuk Analisis Differensiasi Prevalensi Stunting
+def show_analisis_differensiasi_stunting(df):
+    st.subheader("📊 Analisis Differensiasi Prevalensi Stunting")
+    
+    # Tambahkan informasi dengan pendekatan data science, akademik, dan formal
+    with st.expander("📜 Definisi dan Insight Analisis Differensiasi Prevalensi Stunting", expanded=False):
+        st.markdown("""
+            <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
+            
+            ### 📜 Definisi Operasional dan Insight Analisis Differensiasi Prevalensi Stunting
 
-    # Pastikan kolom BB_Lahir dan TB_Lahir ada
-    required_columns = ["BB_Lahir", "TB_Lahir"]
+            Analisis ini bertujuan untuk **mengukur perbedaan (differensiasi) prevalensi stunting** antara dua periode pengukuran (periode awal dan periode akhir) pada level **Puskesmas** dan **Kelurahan**, dengan pendekatan data science untuk mendukung pengambilan keputusan berbasis data dalam program kesehatan masyarakat.
+
+            #### Definisi Operasional
+            - **Prevalensi Stunting**: Persentase balita dengan Z-Score Tinggi Badan menurut Umur (ZS_TBU) < -2, dihitung sebagai (jumlah balita stunting / total balita) × 100%.
+            - **Periode Awal dan Akhir**: Dua periode pengukuran yang dipilih oleh pengguna (format: bulan_tahun, misalnya `agustus_2024` dan `februari_2025`).
+            - **Selisih Prevalensi**: Perbedaan prevalensi stunting antara periode akhir dan awal (Prevalensi Akhir - Prevalensi Awal).
+            - **Klasifikasi Data**:
+              - **Valid Data**: Jika selisih prevalensi ≤ 2%, data dianggap valid, ditandai dengan warna biru.
+              - **Unplausible Data**: Jika selisih prevalensi > 2%, data dianggap *unplausible* (tidak realistis), ditandai dengan warna merah.
+            - **Level Analisis**:
+              - **Puskesmas**: Analisis dilakukan untuk 39 Puskesmas di Kabupaten Malang.
+              - **Kelurahan**: Analisis dilakukan untuk 390 Kelurahan, dikelompokkan berdasarkan Puskesmas.
+
+            #### Metode Analisis
+            1. **Pengumpulan Data**: Data diambil dari kolom `ZS_TBU` untuk menghitung prevalensi stunting per Puskesmas dan Kelurahan pada periode yang dipilih.
+            2. **Perhitungan Prevalensi**: Prevalensi stunting dihitung untuk setiap periode menggunakan rumus:  
+               Prevalensi (%) = (Jumlah balita dengan ZS_TBU < -2 / Total balita) × 100.
+            3. **Perhitungan Selisih**: Selisih prevalensi dihitung sebagai Prevalensi Akhir - Prevalensi Awal.
+            4. **Visualisasi**:
+               - **Scatterplot**: Menampilkan prevalensi awal (sumbu x) vs prevalensi akhir (sumbu y), dengan warna titik berdasarkan selisih prevalensi (biru untuk ≤ 2%, merah untuk > 2%).
+               - **Tabel Heatmap**: Menampilkan selisih prevalensi dengan gradasi warna (biru untuk selisih rendah, merah untuk selisih tinggi).
+
+            #### Insight Analisis
+            - **Valid Data (Selisih ≤ 2%)**: Perubahan prevalensi yang kecil menunjukkan stabilitas status gizi di wilayah tersebut, tetapi juga dapat mengindikasikan kurangnya efektivitas intervensi jika prevalensi tetap tinggi.
+            - **Unplausible Data (Selisih > 2%)**: Perubahan prevalensi yang signifikan dapat mengindikasikan adanya masalah dalam pengukuran (misalnya, inkonsistensi data atau bias pengukuran) atau adanya perubahan nyata dalam status gizi (misalnya, akibat intervensi besar atau bencana). Data ini perlu diverifikasi lebih lanjut untuk memastikan keakuratannya.
+            - Analisis ini membantu mengidentifikasi wilayah dengan perubahan prevalensi stunting yang tidak realistis, sehingga dapat dilakukan investigasi lebih lanjut terhadap kualitas data atau efektivitas program gizi di wilayah tersebut.
+
+            </div>
+        """, unsafe_allow_html=True)
+
+    # Validasi kolom yang diperlukan
+    required_columns = ["periode", "puskesmas", "kelurahan", "ZS_TBU"]
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         st.error(f"Kolom berikut tidak ditemukan di dataset: {', '.join(missing_columns)}. Silakan periksa data.")
         return
 
-    # Tambahkan filter untuk periode, puskesmas, dan kelurahan
-    st.sidebar.subheader("🔍 Filter Data Prevalensi")
-    if "periode" in df.columns:
-        periode_options = ["All"] + sorted(df["periode"].dropna().unique().tolist())
-        if not periode_options or len(periode_options) <= 1:
-            st.sidebar.warning("⚠️ Kolom 'periode' tidak memiliki data unik yang valid selain 'All'. Periksa dataset.")
-    else:
-        periode_options = ["All"]
-        st.sidebar.warning("⚠️ Kolom 'periode' tidak ditemukan di dataset. Filter default ke 'All'.")
-    selected_periode = st.sidebar.selectbox("Pilih Periode Pengukuran", periode_options, key="periode_prevalensi")
-
-    puskesmas_options = ["All"] + sorted(df["puskesmas"].unique().tolist()) if "puskesmas" in df.columns else ["All"]
-    selected_puskesmas = st.sidebar.selectbox("Pilih Puskesmas", puskesmas_options, key="puskesmas_prevalensi")
-
-    kelurahan_options = ["All"] + sorted(df["kelurahan"].unique().tolist()) if "kelurahan" in df.columns else ["All"]
-    selected_kelurahan = st.sidebar.selectbox("Pilih Kelurahan", kelurahan_options, key="kelurahan_prevalensi")
-
-    # Filter dataset berdasarkan pilihan
-    filtered_df = df.copy()
-    if selected_periode != "All":
-        filtered_df = filtered_df[filtered_df["periode"] == selected_periode]
-    if selected_puskesmas != "All":
-        filtered_df = filtered_df[filtered_df["puskesmas"] == selected_puskesmas]
-    if selected_kelurahan != "All":
-        filtered_df = filtered_df[filtered_df["kelurahan"] == selected_kelurahan]
-
-    if filtered_df.empty:
-        st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih. Silakan sesuaikan filter.")
+    # Filter periode awal dan akhir
+    st.sidebar.subheader("🔍 Filter Periode Analisis Differensiasi")
+    periode_options = sorted(df["periode"].dropna().unique().tolist())
+    if len(periode_options) < 2:
+        st.sidebar.warning("⚠️ Dataset hanya memiliki satu periode. Analisis ini memerlukan minimal dua periode.")
         return
 
-    # Data Cleaning untuk BB_Lahir
-    def clean_bb_lahir(value):
-        try:
-            value = float(value)
-            if value < 1:
-                return 0
-            elif value > 5:
-                # Jika digit > 3, bagi untuk menjadi desimal 1 digit
-                if len(str(int(value))) > 3:
-                    value = value / 1000  # Misal 234 -> 0.234, lalu kita ambil 2.3
-                    value = round(value, 1)  # Bulatkan ke 1 desimal
-                    return min(value, 5)  # Pastikan tidak lebih dari 5
-                return 5
-            return value
-        except:
-            return 0  # Jika gagal konversi, anggap 0
+    periode_awal = st.sidebar.selectbox("Pilih Periode Awal", periode_options, index=0, key="periode_awal_diff")
+    periode_akhir_options = [p for p in periode_options if p > periode_awal]
+    if not periode_akhir_options:
+        st.sidebar.warning("⚠️ Tidak ada periode setelah periode awal yang dipilih. Silakan pilih periode awal yang lebih awal.")
+        return
+    periode_akhir = st.sidebar.selectbox("Pilih Periode Akhir", periode_akhir_options, index=len(periode_akhir_options)-1, key="periode_akhir_diff")
 
-    # Data Cleaning untuk TB_Lahir
-    def clean_tb_lahir(value):
-        try:
-            value = float(value)
-            if value < 44:
-                return 44
-            elif value > 55.6:
-                return 55.6
-            return value
-        except:
-            return 44  # Jika gagal konversi, anggap 44
+    # Filter dataset berdasarkan periode
+    df_filtered = df[df["periode"].isin([periode_awal, periode_akhir])].copy()
+    if df_filtered.empty:
+        st.warning("⚠️ Tidak ada data yang sesuai dengan filter periode yang dipilih.")
+        return
 
-    # Terapkan cleaning
-    filtered_df["BB_Lahir"] = filtered_df["BB_Lahir"].apply(clean_bb_lahir)
-    filtered_df["TB_Lahir"] = filtered_df["TB_Lahir"].apply(clean_tb_lahir)
+    # Tab untuk memilih level analisis
+    tabs = st.tabs(["Level Puskesmas", "Level Kelurahan"])
 
-    # Hitung prevalensi untuk Stunting, Wasting, Underweight, dan Overweight
-    def calculate_prevalensi(df_grouped):
-        total_balita = df_grouped.shape[0]
-        if total_balita == 0:
-            return pd.Series({
-                "Prevalensi_Stunting": 0,
-                "Prevalensi_Wasting": 0,
-                "Prevalensi_Underweight": 0,
-                "Prevalensi_Overweight": 0
-            })
-        stunting_count = df_grouped[df_grouped["ZS_TBU"] < -2].shape[0]
-        wasting_count = df_grouped[df_grouped["ZS_BBTB"] < -2].shape[0]
-        underweight_count = df_grouped[df_grouped["ZS_BBU"] < -2].shape[0]
-        overweight_count = df_grouped[df_grouped["ZS_BBU"] > 2].shape[0]
-        return pd.Series({
-            "Prevalensi_Stunting": (stunting_count / total_balita) * 100,
-            "Prevalensi_Wasting": (wasting_count / total_balita) * 100,
-            "Prevalensi_Underweight": (underweight_count / total_balita) * 100,
-            "Prevalensi_Overweight": (overweight_count / total_balita) * 100
-        })
+    # Tab 1: Analisis Differensiasi Prevalensi Stunting Level Puskesmas
+    with tabs[0]:
+        st.write("### Analisis Differensiasi Prevalensi Stunting Level Puskesmas")
 
-    # 1. Grafik Trend Prevalensi Masalah Gizi (Tetap Line Chart)
-    st.subheader("📈 Grafik Trend Prevalensi Masalah Gizi")
-    prevalensi_trend_df = filtered_df.groupby("periode").apply(calculate_prevalensi).reset_index()
+        # Hitung prevalensi stunting per Puskesmas untuk periode awal dan akhir
+        df_awal = df_filtered[df_filtered["periode"] == periode_awal]
+        df_akhir = df_filtered[df_filtered["periode"] == periode_akhir]
 
-    fig_combined = go.Figure()
+        # Pastikan semua Puskesmas yang ada di dataset dimasukkan
+        all_puskesmas = sorted(df["puskesmas"].unique())
+        prevalensi_awal = df_awal.groupby("puskesmas").apply(calculate_prevalensi_stunting).reset_index(name="Prevalensi_Awal")
+        prevalensi_akhir = df_akhir.groupby("puskesmas").apply(calculate_prevalensi_stunting).reset_index(name="Prevalensi_Akhir")
 
-    fig_combined.add_trace(go.Scatter(
-        x=prevalensi_trend_df["periode"],
-        y=prevalensi_trend_df["Prevalensi_Stunting"],
-        mode="lines+markers",
-        name="Stunting (TBU)",
-        line=dict(color="blue")
-    ))
-    fig_combined.add_trace(go.Scatter(
-        x=prevalensi_trend_df["periode"],
-        y=prevalensi_trend_df["Prevalensi_Wasting"],
-        mode="lines+markers",
-        name="Wasting (BBTB)",
-        line=dict(color="red")
-    ))
-    fig_combined.add_trace(go.Scatter(
-        x=prevalensi_trend_df["periode"],
-        y=prevalensi_trend_df["Prevalensi_Underweight"],
-        mode="lines+markers",
-        name="Underweight (BBU)",
-        line=dict(color="green")
-    ))
+        # Buat DataFrame dengan semua Puskesmas
+        prevalensi_df = pd.DataFrame({"puskesmas": all_puskesmas})
+        prevalensi_df = prevalensi_df.merge(prevalensi_awal, on="puskesmas", how="left").merge(prevalensi_akhir, on="puskesmas", how="left").fillna(0)
+        prevalensi_df["Selisih"] = prevalensi_df["Prevalensi_Akhir"] - prevalensi_df["Prevalensi_Awal"]
+        prevalensi_df["Selisih_Abs"] = prevalensi_df["Selisih"].abs()  # Untuk gradasi warna
 
-    fig_combined.update_layout(
-        title="Trend Prevalensi Masalah Gizi",
-        xaxis_title="Periode",
-        yaxis_title="Prevalensi (%)",
-        legend_title="Indikator",
-        hovermode="x unified",
-        template="plotly_white"
-    )
-    st.plotly_chart(fig_combined, use_container_width=True)
+        # Klasifikasi valid/unplausible
+        prevalensi_df["Status"] = prevalensi_df["Selisih_Abs"].apply(lambda x: "Valid" if x <= 2 else "Unplausible")
+        prevalensi_df["Color"] = prevalensi_df["Selisih_Abs"].apply(lambda x: "#1E90FF" if x <= 2 else "#FF0000")
 
-    # Analisis Tren Prevalensi
-    st.subheader("📋 Analisis Tren Prevalensi")
-    if len(prevalensi_trend_df) > 1:
-        st.markdown("""
-            <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px; border: 1px solid #D3E3F5;">
-            <h4 style="color: #1F77B4;">📈 Analisis Tren Prevalensi</h4>
-        """, unsafe_allow_html=True)
+        # Visualisasi 1: Scatterplot
+        st.write("#### Scatterplot Prevalensi Stunting per Puskesmas")
+        fig_scatter = px.scatter(
+            prevalensi_df,
+            x="Prevalensi_Awal",
+            y="Prevalensi_Akhir",
+            color="Selisih_Abs",
+            color_continuous_scale=["#1E90FF", "#FF0000"],
+            size_max=15,
+            text="puskesmas",
+            labels={"Prevalensi_Awal": f"Prevalensi Stunting {periode_awal} (%)", "Prevalensi_Akhir": f"Prevalensi Stunting {periode_akhir} (%)"},
+            title="Perbandingan Prevalensi Stunting per Puskesmas",
+            range_x=[-5, 105],
+            range_y=[-5, 105],
+        )
+        fig_scatter.update_traces(
+            textposition="top center",
+            marker=dict(size=10, opacity=0.8),
+            hovertemplate="Puskesmas: %{text}<br>Prevalensi Awal: %{x:.2f}%<br>Prevalensi Akhir: %{y:.2f}%<br>Selisih: %{customdata:.2f}%",
+            customdata=prevalensi_df["Selisih"]
+        )
+        fig_scatter.update_layout(
+            coloraxis_colorbar_title="% Selisih",
+            coloraxis_colorbar=dict(
+                tickvals=[0, 2, 10],
+                ticktext=["0.0", "2.0", "10.0"]
+            ),
+            height=600,
+            showlegend=False,
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_scatter, use_container_width=True)
 
-        for indicator in ["Prevalensi_Stunting", "Prevalensi_Wasting", "Prevalensi_Underweight"]:
-            first_value = prevalensi_trend_df[indicator].iloc[0]
-            last_value = prevalensi_trend_df[indicator].iloc[-1]
-            if last_value > first_value:
-                trend = "meningkat"
-                icon = "📈"
-                color = "#FF4D4F"
-            elif last_value < first_value:
-                trend = "menurun"
-                icon = "📉"
-                color = "#2CA02C"
-            else:
-                trend = "stabil"
-                icon = "➖"
-                color = "#FFA500"
-            st.markdown(
-                f"""
-                <p style="color: {color}; font-size: 16px;">
-                    {icon} <strong>{indicator.replace('Prevalensi_', '')}:</strong> Tren <strong>{trend}</strong> dari {first_value:.2f}% menjadi {last_value:.2f}%.
-                </p>
-                """,
-                unsafe_allow_html=True
-            )
+        # Visualisasi 2: Tabel Heatmap
+        st.write("#### Tabel Heatmap Prevalensi Stunting per Puskesmas")
+        fig_heatmap = go.Figure(data=go.Heatmap(
+            z=prevalensi_df["Selisih_Abs"],
+            x=["% Selisih"],
+            y=prevalensi_df["puskesmas"],
+            colorscale=["#1E90FF", "#FF0000"],
+            zmin=0,
+            zmax=10,
+            text=prevalensi_df["Selisih"].apply(lambda x: f"{x:.2f}%"),
+            texttemplate="%{text}",
+            hoverongaps=False
+        ))
+        fig_heatmap.update_layout(
+            title="Heatmap Selisih Prevalensi Stunting per Puskesmas",
+            xaxis_title="",
+            yaxis_title="Puskesmas",
+            height=max(400, len(prevalensi_df) * 30),  # Sesuaikan tinggi berdasarkan jumlah Puskesmas
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_heatmap, use_container_width=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.markdown("""
-            <div style="background-color: #FFF3CD; padding: 15px; border-radius: 10px; border: 1px solid #FFECB3;">
-            ⚠️ Data tidak cukup untuk analisis tren (minimal 2 periode).
-            </div>
-        """, unsafe_allow_html=True)
+        # Tabel setelah heatmap
+        st.write("#### Tabel Prevalensi Stunting per Puskesmas")
+        heatmap_data = prevalensi_df[["puskesmas", "Prevalensi_Awal", "Prevalensi_Akhir", "Selisih"]].copy()
+        heatmap_data.columns = ["Puskesmas", "Prevalensi Awal (%)", "Prevalensi Akhir (%)", "% Selisih"]
+        heatmap_data["% Selisih"] = heatmap_data["% Selisih"].apply(lambda x: f"{x:.2f}%")
+        st.dataframe(heatmap_data, use_container_width=True)
 
-    # 2. Grafik Prevalensi Terpisah (Bar Chart) 
-    st.subheader("📊 Grafik Prevalensi per Indikator (Berdasarkan Puskesmas)")
-    if selected_puskesmas != "All":
-        if "kelurahan" in filtered_df.columns:
-            # Grup berdasarkan puskesmas dan kelurahan
-            prevalensi_per_indikator_df = filtered_df.groupby(["puskesmas", "kelurahan"]).apply(calculate_prevalensi).reset_index()
-            # Sumbu x akan menampilkan kelurahan
-            x_values = prevalensi_per_indikator_df["kelurahan"]
-            group_by = "kelurahan"
-            hue = None  # Tidak perlu hue karena kelurahan sudah di sumbu x
-        else:
-            # Jika tidak ada kolom kelurahan, gunakan puskesmas
-            prevalensi_per_indikator_df = filtered_df.groupby("puskesmas").apply(calculate_prevalensi).reset_index()
-            x_values = prevalensi_per_indikator_df["puskesmas"]
-            group_by = "puskesmas"
-            hue = None
-    else:
-        # Jika puskesmas "All", grup berdasarkan puskesmas saja
-        prevalensi_per_indikator_df = filtered_df.groupby("puskesmas").apply(calculate_prevalensi).reset_index()
-        x_values = prevalensi_per_indikator_df["puskesmas"]
-        group_by = "puskesmas"
-        hue = None
+    # Tab 2: Analisis Differensiasi Prevalensi Stunting Level Kelurahan
+    with tabs[1]:
+        st.write("### Analisis Differensiasi Prevalensi Stunting Level Kelurahan")
 
-    indicators = [
-        ("Prevalensi_Stunting", "Stunting (TBU)", "blue", 18.8),
-        ("Prevalensi_Wasting", "Wasting (BBTB)", "red", 8.0),
-        ("Prevalensi_Underweight", "Underweight (BBU)", "green", 15.0),
-        ("Prevalensi_Overweight", "Overweight (BBU)", "purple", 4.0)
-    ]
+        # Hitung prevalensi stunting per Kelurahan untuk periode awal dan akhir
+        df_awal = df_filtered[df_filtered["periode"] == periode_awal]
+        df_akhir = df_filtered[df_filtered["periode"] == periode_akhir]
 
-    for indicator, title, color, target in indicators:
-        st.write(f"#### Prevalensi {title}")
-        fig = go.Figure()
+        prevalensi_awal_kel = df_awal.groupby(["puskesmas", "kelurahan"]).apply(calculate_prevalensi_stunting).reset_index(name="Prevalensi_Awal")
+        prevalensi_akhir_kel = df_akhir.groupby(["puskesmas", "kelurahan"]).apply(calculate_prevalensi_stunting).reset_index(name="Prevalensi_Akhir")
 
-        # Tambahkan bar untuk setiap kelurahan (atau puskesmas jika tidak ada breakdown)
-        fig.add_trace(go.Bar(
-            x=x_values,
-            y=prevalensi_per_indikator_df[indicator],
-            name=title,
-            marker_color=color,
-            text=prevalensi_per_indikator_df[indicator].apply(lambda x: f"{x:.2f}%"),
-            textposition="auto"
+        # Pastikan semua kombinasi Puskesmas dan Kelurahan dimasukkan
+        all_combinations = df[["puskesmas", "kelurahan"]].drop_duplicates().sort_values(by=["puskesmas", "kelurahan"])
+        prevalensi_df_kel = all_combinations.merge(prevalensi_awal_kel, on=["puskesmas", "kelurahan"], how="left").merge(prevalensi_akhir_kel, on=["puskesmas", "kelurahan"], how="left").fillna(0)
+        prevalensi_df_kel["Selisih"] = prevalensi_df_kel["Prevalensi_Akhir"] - prevalensi_df_kel["Prevalensi_Awal"]
+        prevalensi_df_kel["Selisih_Abs"] = prevalensi_df_kel["Selisih"].abs()
+
+        # Klasifikasi valid/unplausible
+        prevalensi_df_kel["Status"] = prevalensi_df_kel["Selisih_Abs"].apply(lambda x: "Valid" if x <= 2 else "Unplausible")
+        prevalensi_df_kel["Color"] = prevalensi_df_kel["Selisih_Abs"].apply(lambda x: "#1E90FF" if x <= 2 else "#FF0000")
+
+        # Visualisasi 1: Scatterplot
+        st.write("#### Scatterplot Prevalensi Stunting per Kelurahan")
+        fig_scatter_kel = px.scatter(
+            prevalensi_df_kel,
+            x="Prevalensi_Awal",
+            y="Prevalensi_Akhir",
+            color="Selisih_Abs",
+            color_continuous_scale=["#1E90FF", "#FF0000"],
+            size_max=10,
+            text="kelurahan",
+            labels={"Prevalensi_Awal": f"Prevalensi Stunting {periode_awal} (%)", "Prevalensi_Akhir": f"Prevalensi Stunting {periode_akhir} (%)"},
+            title="Perbandingan Prevalensi Stunting per Kelurahan",
+            range_x=[-5, 105],
+            range_y=[-5, 105],
+        )
+        fig_scatter_kel.update_traces(
+            textposition="top center",
+            marker=dict(size=8, opacity=0.7),
+            hovertemplate="Kelurahan: %{text}<br>Prevalensi Awal: %{x:.2f}%<br>Prevalensi Akhir: %{y:.2f}%<br>Selisih: %{customdata:.2f}%",
+            customdata=prevalensi_df_kel["Selisih"]
+        )
+        fig_scatter_kel.update_layout(
+            coloraxis_colorbar_title="% Selisih",
+            coloraxis_colorbar=dict(
+                tickvals=[0, 2, 10],
+                ticktext=["0.0", "2.0", "10.0"]
+            ),
+            height=600,
+            showlegend=False,
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_scatter_kel, use_container_width=True)
+
+        # Visualisasi 2: Tabel Heatmap (Mirip SC, dengan Puskesmas di sumbu Y dan Kelurahan di sumbu X)
+        st.write("#### Tabel Heatmap Prevalensi Stunting per Kelurahan")
+
+        # Pivot data untuk heatmap
+        # Membuat pivot table dengan Puskesmas sebagai baris dan Kelurahan sebagai kolom
+        pivot_df = prevalensi_df_kel.pivot(index="puskesmas", columns="kelurahan", values="Selisih_Abs").fillna(0)
+        pivot_text = prevalensi_df_kel.pivot(index="puskesmas", columns="kelurahan", values="Selisih").apply(lambda x: x.map(lambda v: f"{v:.2f}%")).fillna("0.00%")
+
+        # Buat heatmap
+        fig_heatmap_kel = go.Figure(data=go.Heatmap(
+            z=pivot_df.values,
+            x=pivot_df.columns,
+            y=pivot_df.index,
+            colorscale=["#D3D3D3", "#FF0000"],
+            zmin=0,
+            zmax=10,
+            text=pivot_text.values,
+            texttemplate="%{text}",
+            hoverongaps=False,
+            hovertemplate="Puskesmas: %{y}<br>Kelurahan: %{x}<br>% Selisih: %{text}<br>Selisih Absolut: %{z:.2f}%"
         ))
 
-        # Tambahkan garis target
-        fig.add_shape(
-            type="line",
-            x0=-0.5,
-            x1=len(x_values) - 0.5,
-            y0=target,
-            y1=target,
-            line=dict(color="black", dash="dash", width=2),
-            name=f"Target {title}"
-        )
-        # Tambahkan anotasi untuk garis target
-        fig.add_annotation(
-            x=len(x_values) - 0.5,
-            y=target,
-            text=f"Target: {target}%",
-            showarrow=True,
-            arrowhead=1,
-            ax=20,
-            ay=-30
-        )
-
-        # Atur layout grafik
-        fig.update_layout(
-            title=f"Prevalensi {title}",
-            xaxis_title="Kelurahan" if selected_puskesmas != "All" and "kelurahan" in filtered_df.columns else "Puskesmas",
-            yaxis_title="Prevalensi (%)",
+        # Update layout untuk heatmap
+        fig_heatmap_kel.update_layout(
+            title="Heatmap Selisih Prevalensi Stunting per Kelurahan",
+            xaxis_title="Kelurahan",
+            yaxis_title="Puskesmas",
+            height=max(400, len(pivot_df) * 30),  # Sesuaikan tinggi berdasarkan jumlah Puskesmas
+            width=max(600, len(pivot_df.columns) * 20),  # Sesuaikan lebar berdasarkan jumlah Kelurahan
             template="plotly_white",
-            showlegend=False  # Hapus legenda
+            xaxis=dict(tickangle=45),  # Putar label Kelurahan agar lebih mudah dibaca
         )
 
-        # Rotasi label sumbu x agar lebih mudah dibaca
-        fig.update_xaxes(tickangle=45)
+        # Tambahkan garis pemisah antar Puskesmas
+        for i in range(len(pivot_df.index) - 1):
+            fig_heatmap_kel.add_shape(
+                type="line",
+                x0=-0.5,
+                x1=len(pivot_df.columns) - 0.5,
+                y0=i + 0.5,
+                y1=i + 0.5,
+                line=dict(color="black", width=1),
+            )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_heatmap_kel, use_container_width=True)
 
-    # 3. Analisis Odds Ratio (OR)
-    st.subheader("📉 Analisis Odds Ratio (OR) untuk Risiko Stunting")
+        # Tabel setelah heatmap
+        st.write("#### Tabel Prevalensi Stunting per Kelurahan")
+        heatmap_data_kel = prevalensi_df_kel[["puskesmas", "kelurahan", "Prevalensi_Awal", "Prevalensi_Akhir", "Selisih"]].copy()
+        heatmap_data_kel.columns = ["Puskesmas", "Kelurahan", "Prevalensi Awal (%)", "Prevalensi Akhir (%)", "% Selisih"]
+        heatmap_data_kel["% Selisih"] = heatmap_data_kel["% Selisih"].apply(lambda x: f"{x:.2f}%")
+        st.dataframe(heatmap_data_kel, use_container_width=True)
 
-    # Klasifikasi BBLR, PBLR, dan Stunting
-    filtered_df["BBLR"] = filtered_df["BB_Lahir"] < 2.5
-    filtered_df["PBLR"] = filtered_df["TB_Lahir"] < 48
-    filtered_df["BBLR_PBLR"] = (filtered_df["BBLR"] & filtered_df["PBLR"])
-    filtered_df["Stunting"] = filtered_df["ZS_TBU"] < -2
+# Modifikasi fungsi show_info_data_eppgbm untuk menambahkan submenu
+def show_info_data_eppgbm(df):
+    # Tambahkan radio button untuk memilih submenu
+    st.sidebar.subheader("🔍 Pilih Submenu Analisis")
+    submenu_options = ["Informasi Data EPPGBM", "Analisis Differensiasi Prevalensi Stunting"]
+    selected_submenu = st.sidebar.radio("Pilih Submenu", submenu_options, key="submenu_info_data")
 
-    # Fungsi untuk menghitung Odds Ratio
-    def calculate_odds_ratio(df, exposure_col, outcome_col):
-        # Tabel kontingensi
-        a = df[(df[exposure_col] == True) & (df[outcome_col] == True)].shape[0]  # Exposure+ Outcome+
-        b = df[(df[exposure_col] == True) & (df[outcome_col] == False)].shape[0]  # Exposure+ Outcome-
-        c = df[(df[exposure_col] == False) & (df[outcome_col] == True)].shape[0]  # Exposure- Outcome+
-        d = df[(df[exposure_col] == False) & (df[outcome_col] == False)].shape[0]  # Exposure- Outcome-
+    if selected_submenu == "Informasi Data EPPGBM":
+        st.subheader("📋 Informasi Data EPPGBM: Latar Belakang dan Konteks Analisis")
+        st.markdown("""
+            <div style="background-color: #F9F9F9; padding: 20px; border-radius: 10px; border-left: 6px solid #1976D2; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
+                    Analisis EPPGBM (Elektronik Pencatatan dan Pelaporan Gizi Berbasis Masyarakat) dalam dashboard ini disusun berdasarkan data yang diperoleh dari aplikasi 
+                    <a href="https://sigizikesga.kemkes.go.id/login_sisfo/" target="_blank" style="color: #1976D2; text-decoration: underline; font-weight: bold;">SIGIZI-KESGA</a>. 
+                    Sumber data utama berasal dari upaya pengumpulan yang dilakukan oleh para kader kesehatan di 390 desa, yang tersebar di bawah koordinasi 39 Puskesmas di wilayah Kabupaten Malang. 
+                    Proses pengumpulan ini dilakukan di bawah pengawasan Dinas Kesehatan Kabupaten Malang, memastikan representasi data yang luas dan relevan.
+                </p>
+                <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
+                    Data yang digunakan telah melalui proses verifikasi bertahap yang ketat, melibatkan tim Penanggung Jawab (PJ) Kesehatan Desa hingga tingkat Puskesmas. 
+                    Platform SIGIZI-KESGA telah menerapkan mekanisme perbaikan data secara sistemik, termasuk deteksi outlier melalui analisis otomatis, guna menjamin akurasi dan keandalan informasi yang disajikan. 
+                    Fitur analisis ini saat ini difokuskan pada data pengukuran dari dua periode utama, yaitu bulan Februari dan Agustus, yang mencerminkan data aktual hasil penimbangan serta proyeksi target 
+                    Indikator Kinerja Utama (IKU) Pemerintah Kabupaten Malang.
+                </p>
+                <p style="font-size: 16px; color: #333; line-height: 1.6; font-family: Arial, sans-serif;">
+                    Analisis EPPGBM dirancang untuk memberikan wawasan mendalam mengenai pertumbuhan anak, dengan cakupan yang mencakup empat aspek utama:  
+                    1. <strong style="color: #1976D2;">Distribusi Data EPPGBM</strong>: Menyajikan gambaran distribusi data pertumbuhan secara keseluruhan.  
+                    2. <strong style="color: #1976D2;">Distribusi Z-Score Analysis</strong>: Menganalisis distribusi nilai Z-score untuk menilai status gizi.  
+                    3. <strong style="color: #1976D2;">Analisis Z-Score Flag</strong>: Mengidentifikasi data yang memerlukan perhatian khusus berdasarkan flag Z-score.  
+                    4. <strong style="color: #1976D2;">Analisis Trend Pertumbuhan EPPGBM</strong>: Melacak perkembangan pertumbuhan anak secara longitudinal.  
+                    Dengan pendekatan ini, dashboard EPPGBM bertujuan menjadi alat strategis bagi pengambil keputusan di tingkat lokal untuk memantau, mengevaluasi, dan meningkatkan program kesehatan masyarakat.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        st.subheader("📄 Data EPPGBM")
+        st.dataframe(df, use_container_width=True)
 
-        # Hitung OR
-        if b == 0 or c == 0 or d == 0:
-            return float('inf'), (a, b, c, d)  # Jika ada nol, OR tidak terdefinisi
-        odds_ratio = (a * d) / (b * c)
-        return odds_ratio, (a, b, c, d)
+        # Pastikan kolom Z-Score yang diperlukan ada
+        required_zscore_columns = ["ZS_BBU", "ZS_TBU", "ZS_BBTB"]
+        missing_zscore_columns = [col for col in required_zscore_columns if col not in df.columns]
+        if missing_zscore_columns:
+            st.error(f"Kolom Z-Score berikut tidak ditemukan di dataset: {', '.join(missing_zscore_columns)}. Silakan periksa data.")
+            return
 
-    # Hitung OR untuk masing-masing hipotesis
-    or_bblr, table_bblr = calculate_odds_ratio(filtered_df, "BBLR", "Stunting")
-    or_pblr, table_pblr = calculate_odds_ratio(filtered_df, "PBLR", "Stunting")
-    or_bblr_pblr, table_bblr_pblr = calculate_odds_ratio(filtered_df, "BBLR_PBLR", "Stunting")
+        # Pastikan kolom BB_Lahir dan TB_Lahir ada
+        required_columns = ["BB_Lahir", "TB_Lahir"]
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            st.error(f"Kolom berikut tidak ditemukan di dataset: {', '.join(missing_columns)}. Silakan periksa data.")
+            return
 
-    # Tampilkan analisis OR dengan tampilan menarik
-    st.markdown("""
-        <div style="background-color: #F0F9E8; padding: 20px; border-radius: 10px; border: 1px solid #D4EDDA;">
-        <h4 style="color: #2CA02C;">📊 Analisis Odds Ratio (OR) untuk Risiko Stunting</h4>
-    """, unsafe_allow_html=True)
+        # Tambahkan filter untuk periode, puskesmas, dan kelurahan
+        st.sidebar.subheader("🔍 Filter Data Prevalensi")
+        if "periode" in df.columns:
+            periode_options = ["All"] + sorted(df["periode"].dropna().unique().tolist())
+            if not periode_options or len(periode_options) <= 1:
+                st.sidebar.warning("⚠️ Kolom 'periode' tidak memiliki data unik yang valid selain 'All'. Periksa dataset.")
+        else:
+            periode_options = ["All"]
+            st.sidebar.warning("⚠️ Kolom 'periode' tidak ditemukan di dataset. Filter default ke 'All'.")
+        selected_periode = st.sidebar.selectbox("Pilih Periode Pengukuran", periode_options, key="periode_prevalensi")
 
-    # OR untuk BBLR
-    st.markdown(
-        f"""
-        <p style="color: #2CA02C; font-size: 16px;">
-            📌 <strong>BBLR (BB_Lahir < 2.5 kg):</strong> Balita dengan BBLR memiliki risiko stunting <strong>{or_bblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak BBLR.<br>
-            <em>Tabel Kontingensi: Stunting+ BBLR+ = {table_bblr[0]}, Stunting- BBLR+ = {table_bblr[1]}, Stunting+ BBLR- = {table_bblr[2]}, Stunting- BBLR- = {table_bblr[3]}</em>
-        </p>
-        """,
-        unsafe_allow_html=True
-    )
+        puskesmas_options = ["All"] + sorted(df["puskesmas"].unique().tolist()) if "puskesmas" in df.columns else ["All"]
+        selected_puskesmas = st.sidebar.selectbox("Pilih Puskesmas", puskesmas_options, key="puskesmas_prevalensi")
 
-    # OR untuk PBLR
-    st.markdown(
-        f"""
-        <p style="color: #2CA02C; font-size: 16px;">
-            📌 <strong>PBLR (TB_Lahir < 48 cm):</strong> Balita dengan PBLR memiliki risiko stunting <strong>{or_pblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak PBLR.<br>
-            <em>Tabel Kontingensi: Stunting+ PBLR+ = {table_pblr[0]}, Stunting- PBLR+ = {table_pblr[1]}, Stunting+ PBLR- = {table_pblr[2]}, Stunting- PBLR- = {table_pblr[3]}</em>
-        </p>
-        """,
-        unsafe_allow_html=True
-    )
+        kelurahan_options = ["All"] + sorted(df["kelurahan"].unique().tolist()) if "kelurahan" in df.columns else ["All"]
+        selected_kelurahan = st.sidebar.selectbox("Pilih Kelurahan", kelurahan_options, key="kelurahan_prevalensi")
 
-    # OR untuk BBLR + PBLR
-    st.markdown(
-        f"""
-        <p style="color: #2CA02C; font-size: 16px;">
-            📌 <strong>BBLR + PBLR:</strong> Balita dengan BBLR dan PBLR memiliki risiko stunting <strong>{or_bblr_pblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak memiliki keduanya.<br>
-            <em>Tabel Kontingensi: Stunting+ (BBLR+PBLR)+ = {table_bblr_pblr[0]}, Stunting- (BBLR+PBLR)+ = {table_bblr_pblr[1]}, Stunting+ (BBLR+PBLR)- = {table_bblr_pblr[2]}, Stunting- (BBLR+PBLR)- = {table_bblr_pblr[3]}</em>
-        </p>
-        """,
-        unsafe_allow_html=True
-    )
+        # Filter dataset berdasarkan pilihan
+        filtered_df = df.copy()
+        if selected_periode != "All":
+            filtered_df = filtered_df[filtered_df["periode"] == selected_periode]
+        if selected_puskesmas != "All":
+            filtered_df = filtered_df[filtered_df["puskesmas"] == selected_puskesmas]
+        if selected_kelurahan != "All":
+            filtered_df = filtered_df[filtered_df["kelurahan"] == selected_kelurahan]
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        if filtered_df.empty:
+            st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih. Silakan sesuaikan filter.")
+            return
+
+        # Data Cleaning untuk BB_Lahir
+        def clean_bb_lahir(value):
+            try:
+                value = float(value)
+                if value < 1:
+                    return 0
+                elif value > 5:
+                    if len(str(int(value))) > 3:
+                        value = value / 1000
+                        value = round(value, 1)
+                        return min(value, 5)
+                    return 5
+                return value
+            except:
+                return 0
+
+        # Data Cleaning untuk TB_Lahir
+        def clean_tb_lahir(value):
+            try:
+                value = float(value)
+                if value < 44:
+                    return 44
+                elif value > 55.6:
+                    return 55.6
+                return value
+            except:
+                return 44
+
+        # Terapkan cleaning
+        filtered_df["BB_Lahir"] = filtered_df["BB_Lahir"].apply(clean_bb_lahir)
+        filtered_df["TB_Lahir"] = filtered_df["TB_Lahir"].apply(clean_tb_lahir)
+
+        # Hitung prevalensi untuk Stunting, Wasting, Underweight, dan Overweight
+        def calculate_prevalensi(df_grouped):
+            total_balita = df_grouped.shape[0]
+            if total_balita == 0:
+                return pd.Series({
+                    "Prevalensi_Stunting": 0,
+                    "Prevalensi_Wasting": 0,
+                    "Prevalensi_Underweight": 0,
+                    "Prevalensi_Overweight": 0
+                })
+            stunting_count = df_grouped[df_grouped["ZS_TBU"] < -2].shape[0]
+            wasting_count = df_grouped[df_grouped["ZS_BBTB"] < -2].shape[0]
+            underweight_count = df_grouped[df_grouped["ZS_BBU"] < -2].shape[0]
+            overweight_count = df_grouped[df_grouped["ZS_BBU"] > 2].shape[0]
+            return pd.Series({
+                "Prevalensi_Stunting": (stunting_count / total_balita) * 100,
+                "Prevalensi_Wasting": (wasting_count / total_balita) * 100,
+                "Prevalensi_Underweight": (underweight_count / total_balita) * 100,
+                "Prevalensi_Overweight": (overweight_count / total_balita) * 100
+            })
+
+        # Grafik Trend Prevalensi Masalah Gizi
+        st.subheader("📈 Grafik Trend Prevalensi Masalah Gizi")
+        prevalensi_trend_df = filtered_df.groupby("periode").apply(calculate_prevalensi).reset_index()
+
+        fig_combined = go.Figure()
+        fig_combined.add_trace(go.Scatter(
+            x=prevalensi_trend_df["periode"],
+            y=prevalensi_trend_df["Prevalensi_Stunting"],
+            mode="lines+markers",
+            name="Stunting (TBU)",
+            line=dict(color="blue")
+        ))
+        fig_combined.add_trace(go.Scatter(
+            x=prevalensi_trend_df["periode"],
+            y=prevalensi_trend_df["Prevalensi_Wasting"],
+            mode="lines+markers",
+            name="Wasting (BBTB)",
+            line=dict(color="red")
+        ))
+        fig_combined.add_trace(go.Scatter(
+            x=prevalensi_trend_df["periode"],
+            y=prevalensi_trend_df["Prevalensi_Underweight"],
+            mode="lines+markers",
+            name="Underweight (BBU)",
+            line=dict(color="green")
+        ))
+
+        fig_combined.update_layout(
+            title="Trend Prevalensi Masalah Gizi",
+            xaxis_title="Periode",
+            yaxis_title="Prevalensi (%)",
+            legend_title="Indikator",
+            hovermode="x unified",
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_combined, use_container_width=True)
+
+        # Analisis Tren Prevalensi
+        st.subheader("📋 Analisis Tren Prevalensi")
+        if len(prevalensi_trend_df) > 1:
+            st.markdown("""
+                <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px; border: 1px solid #D3E3F5;">
+                <h4 style="color: #1F77B4;">📈 Analisis Tren Prevalensi</h4>
+            """, unsafe_allow_html=True)
+
+            for indicator in ["Prevalensi_Stunting", "Prevalensi_Wasting", "Prevalensi_Underweight"]:
+                first_value = prevalensi_trend_df[indicator].iloc[0]
+                last_value = prevalensi_trend_df[indicator].iloc[-1]
+                if last_value > first_value:
+                    trend = "meningkat"
+                    icon = "📈"
+                    color = "#FF4D4F"
+                elif last_value < first_value:
+                    trend = "menurun"
+                    icon = "📉"
+                    color = "#2CA02C"
+                else:
+                    trend = "stabil"
+                    icon = "➖"
+                    color = "#FFA500"
+                st.markdown(
+                    f"""
+                    <p style="color: {color}; font-size: 16px;">
+                        {icon} <strong>{indicator.replace('Prevalensi_', '')}:</strong> Tren <strong>{trend}</strong> dari {first_value:.2f}% menjadi {last_value:.2f}%.
+                    </p>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("""
+                <div style="background-color: #FFF3CD; padding: 15px; border-radius: 10px; border: 1px solid #FFECB3;">
+                ⚠️ Data tidak cukup untuk analisis tren (minimal 2 periode).
+                </div>
+            """, unsafe_allow_html=True)
+
+        # Grafik Prevalensi Terpisah (Bar Chart)
+        st.subheader("📊 Grafik Prevalensi per Indikator (Berdasarkan Puskesmas)")
+        if selected_puskesmas != "All":
+            if "kelurahan" in filtered_df.columns:
+                prevalensi_per_indikator_df = filtered_df.groupby(["puskesmas", "kelurahan"]).apply(calculate_prevalensi).reset_index()
+                group_by = "kelurahan"
+            else:
+                prevalensi_per_indikator_df = filtered_df.groupby("puskesmas").apply(calculate_prevalensi).reset_index()
+                group_by = "puskesmas"
+        else:
+            prevalensi_per_indikator_df = filtered_df.groupby("puskesmas").apply(calculate_prevalensi).reset_index()
+            group_by = "puskesmas"
+
+        indicators = [
+            ("Prevalensi_Stunting", "Stunting (TBU)", "blue", 18.8),
+            ("Prevalensi_Wasting", "Wasting (BBTB)", "red", 8.0),
+            ("Prevalensi_Underweight", "Underweight (BBU)", "green", 15.0),
+            ("Prevalensi_Overweight", "Overweight (BBU)", "purple", 4.0)
+        ]
+
+        for indicator, title, color, target in indicators:
+            st.write(f"#### Prevalensi {title}")
+            # Urutkan DataFrame berdasarkan nilai prevalensi secara menurun
+            sorted_df = prevalensi_per_indikator_df.sort_values(by=indicator, ascending=False)
+            x_values = sorted_df[group_by]
+            y_values = sorted_df[indicator]
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=x_values,
+                y=y_values,
+                name=title,
+                marker_color=color,
+                text=y_values.apply(lambda x: f"{x:.2f}%"),
+                textposition="auto"
+            ))
+            fig.add_shape(
+                type="line",
+                x0=-0.5,
+                x1=len(x_values) - 0.5,
+                y0=target,
+                y1=target,
+                line=dict(color="black", dash="dash", width=2),
+                name=f"Target {title}"
+            )
+            fig.add_annotation(
+                x=len(x_values) - 0.5,
+                y=target,
+                text=f"Target: {target}%",
+                showarrow=True,
+                arrowhead=1,
+                ax=20,
+                ay=-30
+            )
+            fig.update_layout(
+                title=f"Prevalensi {title}",
+                xaxis_title="Kelurahan" if selected_puskesmas != "All" and "kelurahan" in filtered_df.columns else "Puskesmas",
+                yaxis_title="Prevalensi (%)",
+                template="plotly_white",
+                showlegend=False
+            )
+            fig.update_xaxes(tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Analisis Odds Ratio (OR)
+        st.subheader("📉 Analisis Odds Ratio (OR) untuk Risiko Stunting")
+        filtered_df["BBLR"] = filtered_df["BB_Lahir"] < 2.5
+        filtered_df["PBLR"] = filtered_df["TB_Lahir"] < 48
+        filtered_df["BBLR_PBLR"] = (filtered_df["BBLR"] & filtered_df["PBLR"])
+        filtered_df["Stunting"] = filtered_df["ZS_TBU"] < -2
+
+        def calculate_odds_ratio(df, exposure_col, outcome_col):
+            a = df[(df[exposure_col] == True) & (df[outcome_col] == True)].shape[0]
+            b = df[(df[exposure_col] == True) & (df[outcome_col] == False)].shape[0]
+            c = df[(df[exposure_col] == False) & (df[outcome_col] == True)].shape[0]
+            d = df[(df[exposure_col] == False) & (df[outcome_col] == False)].shape[0]
+            if b == 0 or c == 0 or d == 0:
+                return float('inf'), (a, b, c, d)
+            odds_ratio = (a * d) / (b * c)
+            return odds_ratio, (a, b, c, d)
+
+        or_bblr, table_bblr = calculate_odds_ratio(filtered_df, "BBLR", "Stunting")
+        or_pblr, table_pblr = calculate_odds_ratio(filtered_df, "PBLR", "Stunting")
+        or_bblr_pblr, table_bblr_pblr = calculate_odds_ratio(filtered_df, "BBLR_PBLR", "Stunting")
+
+        st.markdown("""
+            <div style="background-color: #F0F9E8; padding: 20px; border-radius: 10px; border: 1px solid #D4EDDA;">
+            <h4 style="color: #2CA02C;">📊 Analisis Odds Ratio (OR) untuk Risiko Stunting</h4>
+        """, unsafe_allow_html=True)
+        st.markdown(
+            f"""
+            <p style="color: #2CA02C; font-size: 16px;">
+                📌 <strong>BBLR (BB_Lahir < 2.5 kg):</strong> Balita dengan BBLR memiliki risiko stunting <strong>{or_bblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak BBLR.<br>
+                <em>Tabel Kontingensi: Stunting+ BBLR+ = {table_bblr[0]}, Stunting- BBLR+ = {table_bblr[1]}, Stunting+ BBLR- = {table_bblr[2]}, Stunting- BBLR- = {table_bblr[3]}</em>
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"""
+            <p style="color: #2CA02C; font-size: 16px;">
+                📌 <strong>PBLR (TB_Lahir < 48 cm):</strong> Balita dengan PBLR memiliki risiko stunting <strong>{or_pblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak PBLR.<br>
+                <em>Tabel Kontingensi: Stunting+ PBLR+ = {table_pblr[0]}, Stunting- PBLR+ = {table_pblr[1]}, Stunting+ PBLR- = {table_pblr[2]}, Stunting- PBLR- = {table_pblr[3]}</em>
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"""
+            <p style="color: #2CA02C; font-size: 16px;">
+                📌 <strong>BBLR + PBLR:</strong> Balita dengan BBLR dan PBLR memiliki risiko stunting <strong>{or_bblr_pblr:.2f}</strong> kali lebih tinggi dibandingkan yang tidak memiliki keduanya.<br>
+                <em>Tabel Kontingensi: Stunting+ (BBLR+PBLR)+ = {table_bblr_pblr[0]}, Stunting- (BBLR+PBLR)+ = {table_bblr_pblr[1]}, Stunting+ (BBLR+PBLR)- = {table_bblr_pblr[2]}, Stunting- (BBLR+PBLR)- = {table_bblr_pblr[3]}</em>
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    elif selected_submenu == "Analisis Differensiasi Prevalensi Stunting":
+        show_analisis_differensiasi_stunting(df)
+
 
 # Fungsi untuk menampilkan Distribusi Data EPPGBM
 def show_distribusi_data_eppgbm(df):
@@ -898,206 +1147,7 @@ def show_distribusi_zscore_analysis(df):
     st.write("**Distribusi Z-Score Berat Badan menurut Tinggi Badan (BB/TB)**")
     plot_zscore_distribution(filtered_df["ZS_BBTB"], "Distribusi Z-Score BBTB", "BB/TB")
 
-    # Subjudul untuk Growth Chart
-    st.subheader("📉 Growth Chart Berdasarkan Standar WHO")
-
-    # Fungsi untuk menghitung nilai dari LMS berdasarkan Z-Score
-    def calculate_lms_value(lms_row, z_score):
-        L, M, S = lms_row["L"], lms_row["M"], lms_row["S"]
-        if L == 0:  # Jika L = 0, gunakan rumus alternatif
-            return M * np.exp(S * z_score)
-        else:
-            return M * (1 + L * S * z_score) ** (1 / L)
-
-    # Fungsi untuk membuat Growth Chart
-    def plot_growth_chart(indicator, filtered_df, lms_table_boys, lms_table_girls, x_col, y_col, x_label, y_label):
-        # Baca tabel LMS dari database
-        lms_boys = pd.read_sql_query(f"SELECT * FROM {lms_table_boys}", conn)
-        lms_girls = pd.read_sql_query(f"SELECT * FROM {lms_table_girls}", conn)
-
-        # Hitung garis referensi SD untuk laki-laki dan perempuan
-        for z_score, label, color in [
-            (-3, "SD3neg", "red"),
-            (-2, "SD2neg", "yellow"),
-            (-1, "SD1neg", "green"),
-            (0, "SD0", "green"),
-            (1, "SD1", "green"),
-            (2, "SD2", "yellow"),
-            (3, "SD3", "red")
-        ]:
-            lms_boys[f"Value_{label}"] = lms_boys.apply(lambda row: calculate_lms_value(row, z_score), axis=1)
-            lms_girls[f"Value_{label}"] = lms_girls.apply(lambda row: calculate_lms_value(row, z_score), axis=1)
-
-        # Plot untuk Laki-laki
-        st.write(f"**Growth Chart {indicator} (Laki-laki)**")
-        fig_boys = go.Figure()
-        # Tambahkan garis referensi
-        for label, color in [
-            ("SD3neg", "red"),
-            ("SD2neg", "yellow"),
-            ("SD1neg", "green"),
-            ("SD0", "green"),
-            ("SD1", "green"),
-            ("SD2", "yellow"),
-            ("SD3", "red")
-        ]:
-            line_style = "dash" if label != "SD0" else "solid"
-            fig_boys.add_trace(go.Scatter(
-                x=lms_boys["Month_or_Length"],
-                y=lms_boys[f"Value_{label}"],
-                mode="lines",
-                name=label,
-                line=dict(color=color, dash=line_style)
-            ))
-
-        # Tambahkan scatter plot untuk data aktual (laki-laki)
-        boys_data = filtered_df[filtered_df["jk"] == "L"]
-        fig_boys.add_trace(go.Scatter(
-            x=boys_data[x_col],
-            y=boys_data[y_col],
-            mode="markers",
-            name="Data Aktual",
-            marker=dict(color="blue", size=5, opacity=0.5)
-        ))
-
-        # Update layout
-        fig_boys.update_layout(
-            title=f"Growth Chart {indicator} (Laki-laki)",
-            xaxis_title=x_label,
-            yaxis_title=y_label,
-            title_x=0.5,
-            height=500,
-            legend_title="Garis Referensi",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_boys, use_container_width=True)
-
-        # Plot untuk Perempuan
-        st.write(f"**Growth Chart {indicator} (Perempuan)**")
-        fig_girls = go.Figure()
-        # Tambahkan garis referensi
-        for label, color in [
-            ("SD3neg", "red"),
-            ("SD2neg", "yellow"),
-            ("SD1neg", "green"),
-            ("SD0", "green"),
-            ("SD1", "green"),
-            ("SD2", "yellow"),
-            ("SD3", "red")
-        ]:
-            line_style = "dash" if label != "SD0" else "solid"
-            fig_girls.add_trace(go.Scatter(
-                x=lms_girls["Month_or_Length"],
-                y=lms_girls[f"Value_{label}"],
-                mode="lines",
-                name=label,
-                line=dict(color=color, dash=line_style)
-            ))
-
-        # Tambahkan scatter plot untuk data aktual (perempuan)
-        girls_data = filtered_df[filtered_df["jk"] == "P"]
-        fig_girls.add_trace(go.Scatter(
-            x=girls_data[x_col],
-            y=girls_data[y_col],
-            mode="markers",
-            name="Data Aktual",
-            marker=dict(color="pink", size=5, opacity=0.5)
-        ))
-
-        # Update layout
-        fig_girls.update_layout(
-            title=f"Growth Chart {indicator} (Perempuan)",
-            xaxis_title=x_label,
-            yaxis_title=y_label,
-            title_x=0.5,
-            height=500,
-            legend_title="Garis Referensi",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        st.plotly_chart(fig_girls, use_container_width=True)
-
-    # Koneksi ke database untuk membaca tabel LMS
-    conn = sqlite3.connect("data_eppgbm.db")
-
-    # Plot Growth Chart untuk BBU (gunakan WFA_boys dan WFA_girls)
-    plot_growth_chart("Berat Badan menurut Umur (BB/U)", filtered_df, "WFA_boys", "WFA_girls", 
-                      "usia_bulan", "bb", "Umur (Bulan)", "Berat Badan (kg)")
-
-    # Plot Growth Chart untuk TBU (gunakan LFA_boys dan LFA_girls)
-    plot_growth_chart("Tinggi Badan menurut Umur (TB/U)", filtered_df, "LFA_boys", "LFA_girls", 
-                      "usia_bulan", "tinggi", "Umur (Bulan)", "Tinggi Badan (cm)")
-
-    # Plot Growth Chart untuk BBTB (gunakan WFH_boys dan WFH_girls)
-    plot_growth_chart("Berat Badan menurut Tinggi Badan (BB/TB)", filtered_df, "WFH_boys", "WFH_girls", 
-                      "tinggi", "bb", "Tinggi Badan (cm)", "Berat Badan (kg)")
-
-    # Subjudul untuk Distribusi Z-Score berdasarkan Indikator dan Kelompok Usia
-    st.subheader("📈 Distribusi Z-Score Berdasarkan Indikator dan Kelompok Usia")
-
-    # Fungsi untuk membuat grafik distribusi Z-Score berdasarkan kelompok usia
-    def plot_zscore_by_age_group(indicator, zscore_col, indicator_label):
-        # Buat subplot untuk setiap kelompok usia
-        age_groups = labels_bulan  # ["0-5 bulan", "6-11 bulan", ..., "48-59 bulan"]
-        fig = go.Figure()
-
-        # Warna untuk setiap kelompok usia
-        colors = px.colors.qualitative.Plotly[:len(age_groups)]
-
-        # Untuk setiap kelompok usia, buat kurva distribusi
-        for idx, age_group in enumerate(age_groups):
-            # Filter data berdasarkan kelompok usia
-            age_group_data = filtered_df[filtered_df["age_group"] == age_group][zscore_col]
-            
-            if not age_group_data.empty:
-                # Hitung statistik dasar
-                mean_zscore = age_group_data.mean()
-                std_zscore = age_group_data.std()
-                min_zscore = age_group_data.min()
-                max_zscore = age_group_data.max()
-
-                # Buat kurva distribusi sampel
-                x_range = np.linspace(min_zscore, max_zscore, 100)
-                sample_curve = norm.pdf(x_range, mean_zscore, std_zscore)
-                fig.add_trace(go.Scatter(
-                    x=x_range,
-                    y=sample_curve,
-                    mode="lines",
-                    name=f"{age_group} (Sampel)",
-                    line=dict(color=colors[idx], width=2)
-                ))
-
-                # Tambahkan kurva standar WHO (mean=0, std=1)
-                who_curve = norm.pdf(x_range, 0, 1)
-                fig.add_trace(go.Scatter(
-                    x=x_range,
-                    y=who_curve,
-                    mode="lines",
-                    name=f"{age_group} (WHO)",
-                    line=dict(color=colors[idx], dash="dash", width=2)
-                ))
-
-        # Update layout
-        fig.update_layout(
-            title=f"Z-Score Distribution for {indicator_label} by Age Group",
-            xaxis_title="Z-Score",
-            yaxis_title="Density",
-            title_x=0.5,
-            height=500,
-            legend_title="Kelompok Usia",
-            legend=dict(orientation="h", yanchor="top", y=-0.2, xanchor="center", x=0.5),  # Pindahkan legend ke bawah
-            showlegend=True
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    # Plot distribusi Z-Score untuk setiap indikator
-    plot_zscore_by_age_group("Berat Badan menurut Umur (BB/U)", "ZS_BBU", "Weight-for-Age")
-    plot_zscore_by_age_group("Tinggi Badan menurut Umur (TB/U)", "ZS_TBU", "Length/Height-for-Age")
-    plot_zscore_by_age_group("Berat Badan menurut Tinggi Badan (BB/TB)", "ZS_BBTB", "Weight-for-Length/Height")
-
-    # Tutup koneksi database
-    conn.close()
-
+    
 def show_analisis_zscore_flag(df):
     st.subheader("⚠️ Analisis Z-Score Flag")
 
@@ -2362,7 +2412,505 @@ def show_daftar_balita_bermasalah_gizi(df):
                         disabled=True,
                         help="Harap setujui kebijakan privasi terlebih dahulu."
                     )
+# Sidebar untuk memilih submenu Analisis Longitudinal
+def analisis_longitudinal_balita(df):
+    st.subheader("📈 Analisis Longitudinal Balita")
 
+    # 1. Validasi Awal dan Persiapan Data
+    required_columns = ["nik", "periode", "puskesmas", "kelurahan", "ZS_TBU", "Tgl_ukur", "Tgl_Lahir"]
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        st.error(f"Kolom berikut tidak ditemukan di dataset: {', '.join(missing_columns)}. Silakan periksa data.")
+        return
+
+    # 2. Pilihan Periode Awal dan Akhir
+    st.sidebar.subheader("🔍 Filter Periode Analisis Longitudinal")
+    periode_options = sorted(df["periode"].dropna().unique().tolist())
+    if len(periode_options) < 2:
+        st.sidebar.warning("⚠️ Dataset hanya memiliki satu periode. Analisis longitudinal memerlukan minimal dua periode.")
+        return
+
+    periode_awal = st.sidebar.selectbox("Pilih Periode Awal", periode_options, index=0, key="periode_awal_longitudinal")
+    periode_akhir_options = [p for p in periode_options if p > periode_awal]
+    if not periode_akhir_options:
+        st.sidebar.warning("⚠️ Tidak ada periode setelah periode awal yang dipilih. Silakan pilih periode awal yang lebih awal.")
+        return
+    periode_akhir = st.sidebar.selectbox("Pilih Periode Akhir", periode_akhir_options, index=len(periode_akhir_options)-1, key="periode_akhir_longitudinal")
+
+    # 3. Filter Dataset Berdasarkan Periode
+    df_filtered = df[df["periode"].isin([periode_awal, periode_akhir])].copy()
+
+    # 4. Menghitung Usia dalam Bulan
+    try:
+        df_filtered["usia_bulan"] = ((pd.to_datetime(df_filtered["Tgl_ukur"]) - pd.to_datetime(df_filtered["Tgl_Lahir"])) / pd.Timedelta(days=30.4375)).astype(int)
+        df_filtered["usia_bulan"] = df_filtered["usia_bulan"].fillna(0).clip(lower=0)
+    except Exception as e:
+        st.error(f"⚠️ Gagal menghitung usia_bulan: {str(e)}. Pastikan kolom 'Tgl_ukur' dan 'Tgl_Lahir' memiliki format tanggal yang valid.")
+        return
+
+    # 5. Filter Balita untuk Analisis Longitudinal
+    nik_counts = df_filtered["nik"].value_counts()
+    longitudinal_niks = nik_counts.index
+    df_longitudinal = df_filtered[df_filtered["nik"].isin(longitudinal_niks)]
+
+    # 6. Menambahkan Status Stunting
+    df_longitudinal["is_stunting"] = (df_longitudinal["ZS_TBU"] < -2).fillna(False)
+
+    # 7. Pisahkan Data untuk Periode Awal dan Akhir
+    df_awal = df_longitudinal[df_longitudinal["periode"] == periode_awal]
+    df_akhir = df_longitudinal[df_longitudinal["periode"] == periode_akhir]
+
+    # 8. Filter Berdasarkan Puskesmas dan Kelurahan
+    st.sidebar.subheader("🔍 Filter Lokasi")
+    puskesmas_options = ["All"] + sorted(df_longitudinal["puskesmas"].unique().tolist())
+    selected_puskesmas = st.sidebar.selectbox("Pilih Puskesmas", puskesmas_options, key="puskesmas_longitudinal")
+
+    if selected_puskesmas != "All":
+        kelurahan_options = ["All"] + sorted(df_longitudinal[df_longitudinal["puskesmas"] == selected_puskesmas]["kelurahan"].unique().tolist())
+        selected_kelurahan = st.sidebar.selectbox("Pilih Kelurahan", kelurahan_options, key="kelurahan_longitudinal")
+    else:
+        selected_kelurahan = "All"
+
+    if selected_puskesmas != "All":
+        df_awal = df_awal[df_awal["puskesmas"] == selected_puskesmas]
+        df_akhir = df_akhir[df_akhir["puskesmas"] == selected_puskesmas]
+    if selected_kelurahan != "All":
+        df_awal = df_awal[df_awal["kelurahan"] == selected_kelurahan]
+        df_akhir = df_akhir[df_akhir["kelurahan"] == selected_kelurahan]
+
+    # 9. Submenu Analisis
+    st.sidebar.subheader("📊 Submenu Analisis Longitudinal")
+    submenu_options = [
+        "Analisis Tabulasi Data Longitudinal Balita Stunting",
+        "Grafik Analisis Data Longitudinal Balita Stunting"
+    ]
+    selected_submenu = st.sidebar.radio("Pilih Submenu Analisis", submenu_options, key="submenu_longitudinal")
+
+    # 10. Fungsi untuk Menghitung Selisih Bulan Antar Periode
+    def calculate_month_diff(periode1, periode2):
+        month_map = {
+            "januari": 1, "februari": 2, "maret": 3, "april": 4, "mei": 5, "juni": 6,
+            "juli": 7, "agustus": 8, "september": 9, "oktober": 10, "november": 11, "desember": 12
+        }
+        try:
+            month1, year1 = periode1.split("_")
+            month2, year2 = periode2.split("_")
+            m1 = month_map[month1.lower()]
+            m2 = month_map[month2.lower()]
+            y1, y2 = int(year1), int(year2)
+            return (y2 * 12 + m2) - (y1 * 12 + m1)
+        except:
+            return 6
+
+    month_diff = calculate_month_diff(periode_awal, periode_akhir)
+
+    # Fungsi untuk mengelompokkan usia ke dalam kategori
+    def categorize_age_group(age_in_months):
+        if 0 <= age_in_months <= 5:
+            return "0-5 bulan"
+        elif 6 <= age_in_months <= 11:
+            return "6-11 bulan"
+        elif 12 <= age_in_months <= 23:
+            return "12-23 bulan"
+        elif 24 <= age_in_months <= 35:
+            return "24-35 bulan"
+        elif 36 <= age_in_months <= 47:
+            return "36-47 bulan"
+        elif 48 <= age_in_months <= 59:
+            return "48-59 bulan"
+        else:
+            return "Lainnya"
+
+    # Fungsi untuk menghitung distribusi kasus berdasarkan kelompok usia
+    def calculate_age_distribution(df, stunting_col, group_by_col="puskesmas", category=""):
+        if "usia_bulan" not in df.columns:
+            return pd.DataFrame()
+
+        df["age_group"] = df["usia_bulan"].apply(categorize_age_group)
+        df_stunting = df[df[stunting_col] == True]
+        age_dist = df_stunting.groupby([group_by_col, "age_group"]).size().unstack(fill_value=0)
+
+        # Hitung total kasus per puskesmas (akan menjadi denominator)
+        total_per_puskesmas = age_dist.sum(axis=1)
+
+        # Hitung persentase berdasarkan total kasus per puskesmas
+        age_dist_percentage = (age_dist.div(total_per_puskesmas, axis=0) * 100).round(2)
+
+        # Buat DataFrame hasil
+        result_df = pd.DataFrame()
+        age_groups = ["0-5 bulan", "6-11 bulan", "12-23 bulan", "24-35 bulan", "36-47 bulan", "48-59 bulan"]
+        for age_group in age_groups:
+            if age_group in age_dist.columns:
+                result_df[f"{age_group} (Jumlah)"] = age_dist[age_group]
+                result_df[f"{age_group} (%)"] = age_dist_percentage[age_group].apply(lambda x: f"{x:.2f}%")
+            else:
+                result_df[f"{age_group} (Jumlah)"] = 0
+                result_df[f"{age_group} (%)"] = "0.00%"
+
+        # Tambahkan kolom Jumlah Total Current New Stunting Case hanya untuk New Stunting Cases
+        if category == "New Stunting Cases":
+            result_df["Jumlah Total Current New Stunting Case"] = total_per_puskesmas
+
+        result_df = result_df.reset_index()
+
+        # Tambahkan baris total
+        total_row = pd.DataFrame(result_df.drop(columns=[group_by_col]).sum(numeric_only=True), columns=["Total"]).T
+        total_row[group_by_col] = "Total"
+        for col in result_df.columns:
+            if "(%)" in col:
+                # Perbaikan: Persentase untuk baris Total harus dihitung ulang
+                total_jumlah = total_row["0-5 bulan (Jumlah)"].iloc[0] + total_row["6-11 bulan (Jumlah)"].iloc[0] + \
+                               total_row["12-23 bulan (Jumlah)"].iloc[0] + total_row["24-35 bulan (Jumlah)"].iloc[0] + \
+                               total_row["36-47 bulan (Jumlah)"].iloc[0] + total_row["48-59 bulan (Jumlah)"].iloc[0]
+                if total_jumlah != 0:  # Hindari pembagian dengan 0
+                    total_row[col] = (total_row[col.replace(" (%)", " (Jumlah)")] / total_jumlah * 100).apply(lambda x: f"{x:.2f}%")
+                else:
+                    total_row[col] = "0.00%"
+        if category == "New Stunting Cases":
+            total_row["Jumlah Total Current New Stunting Case"] = total_row["0-5 bulan (Jumlah)"]
+        result_df = pd.concat([result_df, total_row], ignore_index=True)
+
+        return result_df
+
+    # Definisi fungsi calculate_stunting_metrics
+    def calculate_stunting_metrics(df_awal, df_akhir, month_diff, group_by_col):
+        # Hitung Current Stunting (jumlah stunting pada periode akhir per puskesmas)
+        current_stunting = df_akhir[df_akhir["is_stunting"]].groupby(group_by_col).size()
+
+        # Cek apakah df_awal kosong
+        if df_awal.empty:
+            st.warning("⚠️ Tidak ada data pada periode awal untuk filter yang dipilih. Analisis tidak dapat dilakukan.")
+            return pd.DataFrame()
+
+        # Cek apakah kolom usia_bulan ada di df_awal
+        if "usia_bulan" not in df_awal.columns:
+            st.error("⚠️ Kolom 'usia_bulan' tidak ditemukan di data periode awal. Silakan periksa data.")
+            return pd.DataFrame()
+
+        # Merge data awal dan akhir berdasarkan NIK
+        merged_df = pd.merge(
+            df_awal[["nik", "is_stunting", "usia_bulan", group_by_col]],
+            df_akhir[["nik", "is_stunting", group_by_col]],
+            on=["nik", group_by_col],
+            how="outer",
+            suffixes=("_awal", "_akhir")
+        )
+
+        # Isi NaN pada usia_bulan dengan 0
+        merged_df["usia_bulan"] = merged_df["usia_bulan"].fillna(0).astype(int)
+
+        # New Stunting Cases
+        new_cases = merged_df[
+            (merged_df["is_stunting_awal"].isna() | (merged_df["is_stunting_awal"] == False)) & 
+            (merged_df["is_stunting_akhir"] == True)
+        ].groupby(group_by_col).size()
+
+        # Existing Stunting Cases
+        existing_cases = merged_df[
+            (merged_df["is_stunting_awal"] == True) & 
+            (merged_df["is_stunting_akhir"] == True)
+        ].groupby(group_by_col).size()
+
+        # Dropout Stunting Cases
+        dropout_cases = merged_df[
+            (merged_df["is_stunting_awal"] == True) & 
+            (merged_df["is_stunting_akhir"].isna()) & 
+            ((merged_df["usia_bulan"] + month_diff) > 60)
+        ].groupby(group_by_col).size()
+
+        # Recovered Stunting Cases
+        recovered_cases = merged_df[
+            (merged_df["is_stunting_awal"] == True) & 
+            (merged_df["is_stunting_akhir"] == False)
+        ].groupby(group_by_col).size()
+
+        # Gabungkan ke dalam DataFrame
+        result_df = pd.DataFrame({
+            "Puskesmas" if group_by_col == "puskesmas" else "Kelurahan": new_cases.index,
+            "Current Stunting": current_stunting,
+            "New Stunting Cases (Jumlah)": new_cases,
+            "Existing Stunting Cases (Jumlah)": existing_cases,
+            "Dropout Stunting Cases (Jumlah)": dropout_cases,
+            "Recovered Stunting Cases (Jumlah)": recovered_cases
+        }).fillna(0)
+
+        # Hitung persentase berdasarkan Current Stunting per puskesmas (simpan sebagai float)
+        result_df["New Stunting Cases (%)"] = (result_df["New Stunting Cases (Jumlah)"] / result_df["Current Stunting"] * 100).fillna(0)
+        result_df["Existing Stunting Cases (%)"] = (result_df["Existing Stunting Cases (Jumlah)"] / result_df["Current Stunting"] * 100).fillna(0)
+        result_df["Dropout Stunting Cases (%)"] = (result_df["Dropout Stunting Cases (Jumlah)"] / result_df["Current Stunting"] * 100).fillna(0)
+        result_df["Recovered Stunting Cases (%)"] = (result_df["Recovered Stunting Cases (Jumlah)"] / result_df["Current Stunting"] * 100).fillna(0)
+
+        # Tambahkan baris total
+        total_row = pd.DataFrame({
+            "Puskesmas" if group_by_col == "puskesmas" else "Kelurahan": ["Total"],
+            "Current Stunting": [result_df["Current Stunting"].sum()],
+            "New Stunting Cases (Jumlah)": [result_df["New Stunting Cases (Jumlah)"].sum()],
+            "New Stunting Cases (%)": [result_df["New Stunting Cases (Jumlah)"].sum() / result_df["Current Stunting"].sum() * 100],
+            "Existing Stunting Cases (Jumlah)": [result_df["Existing Stunting Cases (Jumlah)"].sum()],
+            "Existing Stunting Cases (%)": [result_df["Existing Stunting Cases (Jumlah)"].sum() / result_df["Current Stunting"].sum() * 100],
+            "Dropout Stunting Cases (Jumlah)": [result_df["Dropout Stunting Cases (Jumlah)"].sum()],
+            "Dropout Stunting Cases (%)": [result_df["Dropout Stunting Cases (Jumlah)"].sum() / result_df["Current Stunting"].sum() * 100],
+            "Recovered Stunting Cases (Jumlah)": [result_df["Recovered Stunting Cases (Jumlah)"].sum()],
+            "Recovered Stunting Cases (%)": [result_df["Recovered Stunting Cases (Jumlah)"].sum() / result_df["Current Stunting"].sum() * 100]
+        })
+
+        result_df = pd.concat([result_df, total_row], ignore_index=True)
+
+        return result_df
+
+    # Definisi stunting_categories
+    stunting_categories = [
+        ("New Stunting Cases", "is_stunting_new", "Distribusi Kasus Stunting Baru"),
+        ("Existing Stunting Cases", "is_stunting_existing", "Distribusi Kasus Stunting Lama"),
+        ("Dropout Stunting Cases", "is_stunting_dropout", "Distribusi Kasus Stunting Dropout"),
+        ("Recovered Stunting Cases", "is_stunting_recovered", "Distribusi Kasus Stunting Sembuh")
+    ]
+
+    # 11. Analisis Tabulasi Data Longitudinal (2a)
+    if selected_submenu == "Analisis Tabulasi Data Longitudinal Balita Stunting":
+        with st.expander("📜 Definisi dan Insight Analisis Tabulasi Longitudinal Stunting", expanded=False):
+            st.markdown("""
+            **Definisi Operasional**:
+            - **New Stunting Cases**: Kasus stunting baru, yaitu balita yang tidak stunting pada periode awal tetapi menjadi stunting pada periode akhir.
+            - **Existing Stunting Cases**: Kasus stunting yang sudah ada, yaitu balita yang stunting pada periode awal dan tetap stunting pada periode akhir.
+            - **Dropout Stunting Cases**: Kasus stunting yang keluar dari kelompok usia balita (usia > 60 bulan pada periode akhir).
+            - **Recovered Stunting Cases**: Kasus stunting yang sembuh, yaitu balita yang stunting pada periode awal tetapi tidak stunting pada periode akhir.
+            - **Current Stunting**: Jumlah balita yang stunting pada periode akhir, digunakan sebagai denominator untuk persentase.
+
+            **Metode Analisis**:
+            - Analisis ini menggunakan NIK untuk melacak perubahan status stunting balita antar dua periode.
+            - Persentase dihitung relatif terhadap Current Stunting pada periode akhir per puskesmas.
+
+            **Insight**:
+            - Tingginya New Stunting Cases menunjukkan perlunya intervensi pencegahan dini.
+            - Tingginya Existing Stunting Cases menunjukkan kegagalan intervensi pada kasus stunting sebelumnya.
+            - Recovered Stunting Cases yang tinggi mencerminkan keberhasilan program gizi.
+            """)
+
+        # Tentukan level analisis berdasarkan filter
+        if selected_puskesmas == "All":
+            group_by_col = "puskesmas"
+            st.write(f"### Matriks Tabulasi Longitudinal Stunting (Semua Puskesmas, Periode {periode_awal} - {periode_akhir})")
+        elif selected_kelurahan == "All":
+            group_by_col = "kelurahan"
+            st.write(f"### Matriks Tabulasi Longitudinal Stunting (Puskesmas: {selected_puskesmas}, Periode {periode_awal} - {periode_akhir})")
+        else:
+            group_by_col = "kelurahan"
+            st.write(f"### Matriks Tabulasi Longitudinal Stunting (Puskesmas: {selected_puskesmas}, Kelurahan: {selected_kelurahan}, Periode {periode_awal} - {periode_akhir})")
+
+        # Hitung metrik utama
+        tabulation_df = calculate_stunting_metrics(df_awal, df_akhir, month_diff, group_by_col)
+
+        # Cek apakah tabulation_df kosong
+        if tabulation_df.empty:
+            st.warning("⚠️ Tidak ada data yang dapat ditampilkan untuk filter yang dipilih.")
+            return
+
+        # Format persentase untuk tampilan tabel tanpa mengubah data asli
+        display_df = tabulation_df.copy()
+        for col in ["New Stunting Cases (%)", "Existing Stunting Cases (%)", "Dropout Stunting Cases (%)", "Recovered Stunting Cases (%)"]:
+            display_df[col] = display_df[col].apply(lambda x: f"{x:.2f}%")
+
+        # Tampilkan tabel utama
+        st.dataframe(display_df, use_container_width=True)
+
+        # Tambahkan bagian distribusi berdasarkan kelompok usia
+        st.subheader("📊 Distribusi Kasus Stunting Berdasarkan Kelompok Usia")
+
+        # Buat DataFrame sementara untuk setiap kategori
+        merged_df = pd.merge(
+            df_awal[["nik", "is_stunting", "usia_bulan", group_by_col]],
+            df_akhir[["nik", "is_stunting", "usia_bulan", group_by_col]],
+            on=["nik", group_by_col],
+            how="outer",
+            suffixes=("_awal", "_akhir")
+        )
+        merged_df["usia_bulan_awal"] = merged_df["usia_bulan_awal"].fillna(0).astype(int)
+        merged_df["usia_bulan_akhir"] = merged_df["usia_bulan_akhir"].fillna(0).astype(int)
+
+        # Tambahkan kolom untuk masing-masing kategori
+        merged_df["is_stunting_new"] = (merged_df["is_stunting_awal"].isna() | (merged_df["is_stunting_awal"] == False)) & (merged_df["is_stunting_akhir"] == True)
+        merged_df["is_stunting_existing"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"] == True)
+        merged_df["is_stunting_dropout"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"].isna()) & ((merged_df["usia_bulan_awal"] + month_diff) > 60)
+        merged_df["is_stunting_recovered"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"] == False)
+
+        # Gunakan usia dari periode akhir untuk New dan Existing, usia dari periode awal untuk Dropout dan Recovered
+        merged_df["usia_bulan"] = merged_df.apply(
+            lambda row: row["usia_bulan_akhir"] if row["is_stunting_new"] or row["is_stunting_existing"] else row["usia_bulan_awal"],
+            axis=1
+        )
+
+        # Loop untuk setiap kategori stunting
+        for category, col, title in stunting_categories:
+            st.write(f"#### {title} Berdasarkan Kelompok Usia")
+
+            # Hitung distribusi
+            age_dist_df = calculate_age_distribution(merged_df, col, group_by_col, category=category)
+
+            if age_dist_df.empty:
+                st.warning(f"⚠️ Tidak ada data untuk {title.lower()}.")
+                continue
+
+            # Tampilkan tabel distribusi
+            st.dataframe(age_dist_df, use_container_width=True)
+
+            # Buat heatmap
+            st.write(f"##### Heatmap {title}")
+            columns_to_drop = [col for col in age_dist_df.columns if "(%)" in col or col == "Jumlah Total Current New Stunting Case"]
+            heatmap_data = age_dist_df.drop(columns=columns_to_drop)
+            heatmap_data = heatmap_data.set_index(group_by_col)
+            heatmap_data = heatmap_data.drop("Total", errors="ignore")
+            
+            fig = go.Figure(data=go.Heatmap(
+                z=heatmap_data.values,
+                x=[col.replace(" (Jumlah)", "") for col in heatmap_data.columns],
+                y=heatmap_data.index,
+                colorscale="YlOrRd",
+                text=heatmap_data.values,
+                texttemplate="%{text}",
+                textfont={"size": 12},
+                hoverongaps=False
+            ))
+            fig.update_layout(
+                title=f"Heatmap {title} (Jumlah Kasus)",
+                xaxis_title="Kelompok Usia",
+                yaxis_title=group_by_col.capitalize(),
+                xaxis_tickangle=-45,
+                height=400
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Tambahkan catatan
+        st.markdown("""
+        **Catatan**:
+        - Tabel distribusi menunjukkan jumlah dan persentase kasus stunting per kelompok usia untuk setiap puskesmas.
+        - Heatmap memvisualisasikan distribusi kasus, dengan warna yang lebih gelap menunjukkan jumlah kasus yang lebih tinggi.
+        - Gunakan heatmap untuk mengidentifikasi kelompok usia dan puskesmas dengan kasus stunting tertinggi, sehingga intervensi dapat lebih terfokus.
+        """, unsafe_allow_html=True)
+
+    # 2b. Grafik Analisis Data Longitudinal Balita Stunting
+    elif selected_submenu == "Grafik Analisis Data Longitudinal Balita Stunting":
+        st.write(f"### Grafik Analisis Longitudinal Stunting (Periode {periode_awal} - {periode_akhir})")
+
+        # Hitung metrik untuk visualisasi
+        if selected_puskesmas == "All":
+            group_by_col = "puskesmas"
+            title_suffix = "Semua Puskesmas"
+        elif selected_kelurahan == "All":
+            group_by_col = "kelurahan"
+            title_suffix = f"Puskesmas: {selected_puskesmas}"
+        else:
+            group_by_col = "kelurahan"
+            title_suffix = f"Puskesmas: {selected_puskesmas}, Kelurahan: {selected_kelurahan}"
+
+        tabulation_df = calculate_stunting_metrics(df_awal, df_akhir, month_diff, group_by_col)
+
+        if tabulation_df.empty:
+            st.warning("⚠️ Tidak ada data yang dapat ditampilkan untuk filter yang dipilih.")
+            return
+
+        # Grafik bar utama (persentase)
+        categories = [
+            ("New Stunting Cases (%)", "Kasus Stunting Baru", "blue"),
+            ("Existing Stunting Cases (%)", "Kasus Stunting Lama", "green"),
+            ("Dropout Stunting Cases (%)", "Kasus Stunting Dropout", "orange"),
+            ("Recovered Stunting Cases (%)", "Kasus Stunting Sembuh", "purple")
+        ]
+
+        for col, title, color in categories:
+            fig = go.Figure()
+            plot_df = tabulation_df[tabulation_df["Puskesmas" if group_by_col == "puskesmas" else "Kelurahan"] != "Total"]
+            y_values = plot_df[col].astype(float)
+            fig.add_trace(go.Bar(
+                x=plot_df["Puskesmas" if group_by_col == "puskesmas" else "Kelurahan"],
+                y=y_values,
+                name=title,
+                marker_color=color,
+                text=y_values.apply(lambda x: f"{x:.2f}%"),
+                textposition="auto"
+            ))
+            fig.update_layout(
+                title=f"{title} ({title_suffix})",
+                xaxis_title=group_by_col.capitalize(),
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=-45,
+                template="plotly_white",
+                height=400,
+                yaxis=dict(range=[0, 100])  # Batasi sumbu y ke 0-100%
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Tambahkan grafik distribusi usia (persentase)
+        st.subheader("📊 Distribusi Kasus Stunting Berdasarkan Kelompok Usia (Grafik)")
+        
+        # Buat DataFrame sementara untuk setiap kategori
+        merged_df = pd.merge(
+            df_awal[["nik", "is_stunting", "usia_bulan", group_by_col]],
+            df_akhir[["nik", "is_stunting", "usia_bulan", group_by_col]],
+            on=["nik", group_by_col],
+            how="outer",
+            suffixes=("_awal", "_akhir")
+        )
+        merged_df["usia_bulan_awal"] = merged_df["usia_bulan_awal"].fillna(0).astype(int)
+        merged_df["usia_bulan_akhir"] = merged_df["usia_bulan_akhir"].fillna(0).astype(int)
+
+        merged_df["is_stunting_new"] = (merged_df["is_stunting_awal"].isna() | (merged_df["is_stunting_awal"] == False)) & (merged_df["is_stunting_akhir"] == True)
+        merged_df["is_stunting_existing"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"] == True)
+        merged_df["is_stunting_dropout"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"].isna()) & ((merged_df["usia_bulan_awal"] + month_diff) > 60)
+        merged_df["is_stunting_recovered"] = (merged_df["is_stunting_awal"] == True) & (merged_df["is_stunting_akhir"] == False)
+
+        merged_df["usia_bulan"] = merged_df.apply(
+            lambda row: row["usia_bulan_akhir"] if row["is_stunting_new"] or row["is_stunting_existing"] else row["usia_bulan_awal"],
+            axis=1
+        )
+
+        for category, col, title in stunting_categories:
+            st.write(f"#### {title} Berdasarkan Kelompok Usia (Stacked Bar)")
+            age_dist_df = calculate_age_distribution(merged_df, col, group_by_col, category=category)
+
+            if age_dist_df.empty:
+                st.warning(f"⚠️ Tidak ada data untuk {title.lower()}.")
+                continue
+
+            # Hapus baris Total dari age_dist_df sebelum plotting
+            age_dist_df = age_dist_df[age_dist_df[group_by_col] != "Total"]
+
+            # Buat stacked bar chart (persentase)
+            columns_to_plot = [col for col in age_dist_df.columns if "(%)" in col]
+            plot_data = age_dist_df.melt(id_vars=[group_by_col], value_vars=columns_to_plot)
+            plot_data["value"] = plot_data["value"].str.replace("%", "").astype(float)
+
+            # Custom labels untuk legenda
+            plot_data["variable"] = plot_data["variable"].str.replace(" (%)", "")
+
+            fig = px.bar(
+                plot_data,
+                x=group_by_col,
+                y="value",
+                color="variable",
+                title=f"{title} per Kelompok Usia ({title_suffix})",
+                labels={"value": "Persentase (%)", "variable": "Kelompok Usia"},
+                height=600  # Tingkatkan tinggi grafik
+            )
+            fig.update_layout(
+                xaxis_title=group_by_col.capitalize(),
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=-45,
+                yaxis=dict(range=[0, 100], gridcolor="lightgray"),  # Batasi sumbu y ke 0-100% dan tambahkan grid
+                xaxis=dict(tickfont=dict(size=10)),  # Kecilkan ukuran font label sumbu x
+                legend_title="Kelompok Usia",
+                template="plotly_white",
+                bargap=0.2  # Tambahkan jarak antar bar
+            )
+            fig.update_traces(
+                hovertemplate="%{x}<br>Kelompok Usia: %{fullData.name}<br>Persentase: %{y:.2f}%"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("""
+        **Catatan**: Grafik ini menunjukkan distribusi kasus stunting berdasarkan kategori longitudinal dan kelompok usia dalam persentase. Bar yang tinggi pada "Kasus Stunting Baru" atau "Kasus Stunting Lama" menunjukkan area yang memerlukan intervensi segera, sedangkan "Kasus Stunting Sembuh" mencerminkan keberhasilan program gizi.
+        """, unsafe_allow_html=True)
+        
 def show_dashboard():
     st.title("📈 Dashboard EPPGBM")
 
@@ -2380,7 +2928,8 @@ def show_dashboard():
             "Distribusi Z-Score Analysis",
             "Analisis Z-Score Flag",
             "Analisis Trend Pertumbuhan EPPGBM",
-            "Daftar Balita Bermasalah"
+            "Daftar Balita Bermasalah",
+            "Analisis Longitudinal Balita"
         ]
         selected_analysis = st.sidebar.radio("Pilih submenu:", analysis_options, index=0)
 
@@ -2397,6 +2946,8 @@ def show_dashboard():
             show_analisis_trend_pertumbuhan(df)
         elif selected_analysis == "Daftar Balita Bermasalah":
             show_daftar_balita_bermasalah_gizi(df)
+        elif selected_analysis == "Analisis Longitudinal Balita":
+            analisis_longitudinal_balita (df)
 
     except Exception as e:
         st.warning("⚠️ Data belum tersedia atau terjadi kesalahan koneksi ke database.")
