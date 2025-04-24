@@ -42,7 +42,8 @@ def upload_file(indicator_name, table_name):
             "👧 Indikator Remaja Putri": "https://drive.google.com/uc?export=download&id=1pDkTxdqv2VXZCQjXqlOWtH3zFAFPW0IA",
             "📈 EPPGBM": "https://drive.google.com/uc?export=download&id=1Rp5qkD0m0Mpd0Kop3T_UtfnRSzZ8mgmR",
             "🗂️ Dataset Desa (Referensi)": "https://drive.google.com/uc?export=download&id=1Cyh8qRXi1nOB4crFgQd4TIqPbUMoZyFw",
-            "📅 Bulan Timbang": "https://drive.google.com/uc?export=download&id=1ExampleBultimTemplate"  # Ganti dengan link asli
+            "📅 Bulan Timbang (Puskesmas)": "https://drive.google.com/uc?export=download&id=1ExampleBultimTemplate",  # Ganti dengan link asli
+            "📅 Bulan Timbang (Kelurahan)": "https://drive.google.com/uc?export=download&id=1ExampleBultimKelurahanTemplate"  # Ganti dengan link asli
         }
 
         template_url = template_links.get(indicator_name)
@@ -82,7 +83,8 @@ def show_upload_page():
         "👧 Indikator Remaja Putri": "data_remaja",
         "📈 EPPGBM": "data_eppgbm",
         "🗂️ Dataset Desa (Referensi)": "dataset_desa",
-        "📅 Bulan Timbang": "data_bultim"
+        "📅 Bulan Timbang (Puskesmas)": "data_bultim",
+        "📅 Bulan Timbang (Kelurahan)": "data_bultim_kelurahan"
     }
 
     selected_data = st.selectbox("🔍 Pilih Jenis Data untuk Unggah", list(data_options.keys()))
