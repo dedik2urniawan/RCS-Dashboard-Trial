@@ -23,7 +23,6 @@ import datetime
 st.set_page_config(page_title="Dashboard RCS", layout="wide")
 
 # Fungsi untuk memuat data dari database
-@st.cache_data
 def load_data(table_name, db_path="rcs_data.db"):
     try:
         conn = sqlite3.connect(db_path)
@@ -95,8 +94,6 @@ def create_interactive_map_puskesmas(df, geojson_data, tahun, bulan, puskesmas):
         filtered_df = filtered_df[filtered_df['Tahun'] == int(tahun)]
     if bulan and bulan != "ALL":
         filtered_df = filtered_df[filtered_df['Bulan'] == int(bulan)]
-
-    # Filter berdasarkan puskesmas jika bukan "ALL"
     if puskesmas and puskesmas != "ALL":
         filtered_df = filtered_df[filtered_df['Puskesmas'] == puskesmas]
 
@@ -138,7 +135,6 @@ def create_interactive_map_puskesmas(df, geojson_data, tahun, bulan, puskesmas):
         st.write("Nama di GeoJSON:", sorted(set(geojson_puskesmas)))
         return None
 
-    # Buat peta
     fig = px.choropleth(
         agg_df,
         geojson=geojson_data,
@@ -150,29 +146,12 @@ def create_interactive_map_puskesmas(df, geojson_data, tahun, bulan, puskesmas):
         title=f'Peta Prevalensi Gizi per Puskesmas ({puskesmas if puskesmas != "ALL" else "Semua Puskesmas"})'
     )
 
-    # Jika puskesmas bukan "ALL", fokus ke wilayah tersebut
-    if puskesmas and puskesmas != "ALL":
-        # Cari koordinat pusat dari GeoJSON untuk Puskesmas yang dipilih
-        for feature in geojson_data['features']:
-            if feature['properties']['nama_puskesmas'].strip().title() == puskesmas.strip().title():
-                # Ambil koordinat pusat (centroid) dari geometri
-                if 'geometry' in feature and feature['geometry']['type'] == 'Polygon':
-                    coordinates = feature['geometry']['coordinates'][0]
-                    lon = sum(coord[0] for coord in coordinates) / len(coordinates)
-                    lat = sum(coord[1] for coord in coordinates) / len(coordinates)
-                    fig.update_geos(
-                        center={"lat": lat, "lon": lon},
-                        fitbounds="locations",
-                        visible=False
-                    )
-                break
-    else:
-        # Jika "ALL", tampilkan keseluruhan peta
-        fig.update_geos(fitbounds="locations", visible=False)
+    # Selalu tampilkan peta pada level Puskesmas secara keseluruhan
+    fig.update_geos(fitbounds="locations", visible=False)
 
     fig.update_layout(margin={"r":0,"t":50,"l":0,"b":0})
 
-    # Highlight Puskesmas yang dipilih (opsional, jika ingin tetap menyorot)
+    # Highlight Puskesmas yang dipilih
     if puskesmas and puskesmas != "ALL":
         highlight_df = agg_df[agg_df['Puskesmas'] == puskesmas]
         if not highlight_df.empty:
@@ -559,7 +538,7 @@ def main():
                 unsafe_allow_html=True
             )
 
-            # Tampilkan waktu terakhir data diperbarui (dipindah ke sini)
+            # Tampilkan waktu terakhir data diperbarui
             last_upload = get_last_upload_time()
             st.markdown(f"📅 **Data terakhir diperbarui:** {last_upload}")
 
@@ -582,58 +561,24 @@ def main():
                 geojson_kelurahan = None
 
             if (not df_puskesmas.empty and geojson_puskesmas) or (not df_kelurahan.empty and geojson_kelurahan):
-                # Inisialisasi state untuk tab aktif
-                if "active_tab" not in st.session_state:
-                    st.session_state["active_tab"] = "Analisis Level Puskesmas"
-
                 # Tabs untuk memisahkan analisis
                 tab1, tab2 = st.tabs(["Analisis Level Puskesmas", "Analisis Level Kelurahan"])
 
-                # Filter untuk level Puskesmas
-                tahun_options_puskesmas = ["ALL"] + sorted(df_puskesmas['Tahun'].astype(str).unique().tolist())
-                bulan_options_puskesmas = ["ALL"] + [str(i) for i in range(1, 13)]
-                puskesmas_options = ["ALL"] + sorted(df_puskesmas['Puskesmas'].unique().tolist())
-                
-                # Filter untuk level Kelurahan (opsi awal sebelum filter bergantung)
-                tahun_options_kelurahan = ["ALL"] + sorted(df_kelurahan['Tahun'].astype(str).unique().tolist())
-                bulan_options_kelurahan = ["ALL"] + [str(i) for i in range(1, 13)]
-                puskesmas_options_kelurahan = ["ALL"] + sorted(df_kelurahan['Puskesmas'].unique().tolist())
-                kelurahan_options = ["ALL"] + sorted(df_kelurahan['Kelurahan'].unique().tolist())
-
-                # Sidebar filter berdasarkan tab aktif
-                st.sidebar.header("⚙️ Filter Data")
-                if st.session_state["active_tab"] == "Analisis Level Puskesmas":
-                    with st.sidebar:
-                        st.subheader("Filter Level Puskesmas")
-                        tahun_puskesmas = st.selectbox("📅 Tahun (Puskesmas)", tahun_options_puskesmas, key="tahun_puskesmas")
-                        bulan_puskesmas = st.selectbox("🗓️ Bulan (Puskesmas)", bulan_options_puskesmas, key="bulan_puskesmas")
-                        puskesmas = st.selectbox("🏥 Puskesmas", puskesmas_options, key="puskesmas")
-                        # Default value untuk filter Kelurahan (tidak digunakan di tab ini)
-                        tahun_kelurahan = tahun_options_kelurahan[0]
-                        bulan_kelurahan = bulan_options_kelurahan[0]
-                        puskesmas_kelurahan = puskesmas_options_kelurahan[0]
-                        kelurahan = kelurahan_options[0]
-                else:
-                    with st.sidebar:
-                        st.subheader("Filter Level Kelurahan")
-                        tahun_kelurahan = st.selectbox("📅 Tahun (Kelurahan)", tahun_options_kelurahan, key="tahun_kelurahan")
-                        bulan_kelurahan = st.selectbox("🗓️ Bulan (Kelurahan)", bulan_options_kelurahan, key="bulan_kelurahan")
-                        puskesmas_kelurahan = st.selectbox("🏥 Puskesmas (Kelurahan)", puskesmas_options_kelurahan, key="puskesmas_kelurahan")
-
-                        # Filter Kelurahan berdasarkan Puskesmas yang dipilih
-                        filtered_kelurahan = df_kelurahan
-                        if puskesmas_kelurahan != "ALL":
-                            filtered_kelurahan = filtered_kelurahan[filtered_kelurahan['Puskesmas'] == puskesmas_kelurahan]
-                        kelurahan_options_filtered = ["ALL"] + sorted(filtered_kelurahan['Kelurahan'].unique().tolist())
-                        kelurahan = st.selectbox("🏘️ Kelurahan", kelurahan_options_filtered, key="kelurahan")
-                        # Default value untuk filter Puskesmas (tidak digunakan di tab ini)
-                        tahun_puskesmas = tahun_options_puskesmas[0]
-                        bulan_puskesmas = bulan_options_puskesmas[0]
-                        puskesmas = puskesmas_options[0]
-
                 # Tab 1: Analisis Level Puskesmas
                 with tab1:
-                    st.session_state["active_tab"] = "Analisis Level Puskesmas"
+                    # Filter untuk level Puskesmas (dipindahkan ke dalam tab)
+                    st.subheader("Filter Data Level Puskesmas")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        tahun_options_puskesmas = ["ALL"] + sorted(df_puskesmas['Tahun'].astype(str).unique().tolist())
+                        tahun_puskesmas = st.selectbox("📅 Tahun", tahun_options_puskesmas, key="tahun_puskesmas_tab1")
+                    with col2:
+                        bulan_options_puskesmas = ["ALL"] + [str(i) for i in range(1, 13)]
+                        bulan_puskesmas = st.selectbox("🗓️ Bulan", bulan_options_puskesmas, key="bulan_puskesmas_tab1")
+                    with col3:
+                        puskesmas_options = ["ALL"] + sorted(df_puskesmas['Puskesmas'].unique().tolist())
+                        puskesmas = st.selectbox("🏥 Puskesmas", puskesmas_options, key="puskesmas_tab1")
+
                     if not df_puskesmas.empty and geojson_puskesmas:
                         st.subheader("Progress Capaian Penimbangan EPPGBM")
                         st.subheader("Score Card Pertumbuhan")
@@ -660,7 +605,7 @@ def main():
                             'Prevalensi Underweight',
                             'Prevalensi Obesitas'
                         ]
-                        selected_metric = st.selectbox("📊 Pilih Metrik untuk Grafik (Puskesmas)", metric_options, key="metric_puskesmas")
+                        selected_metric = st.selectbox("📊 Pilih Metrik untuk Grafik", metric_options, key="metric_puskesmas_tab1")
                         graph_fig, table_df = create_graph_and_table_puskesmas(df_puskesmas, selected_metric, tahun_puskesmas, bulan_puskesmas, puskesmas)
                         st.plotly_chart(graph_fig, use_container_width=True)
 
@@ -691,7 +636,26 @@ def main():
 
                 # Tab 2: Analisis Level Kelurahan
                 with tab2:
-                    st.session_state["active_tab"] = "Analisis Level Kelurahan"
+                    # Filter untuk level Kelurahan (dipindahkan ke dalam tab)
+                    st.subheader("Filter Data Level Kelurahan")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        tahun_options_kelurahan = ["ALL"] + sorted(df_kelurahan['Tahun'].astype(str).unique().tolist())
+                        tahun_kelurahan = st.selectbox("📅 Tahun", tahun_options_kelurahan, key="tahun_kelurahan_tab2")
+                    with col2:
+                        bulan_options_kelurahan = ["ALL"] + [str(i) for i in range(1, 13)]
+                        bulan_kelurahan = st.selectbox("🗓️ Bulan", bulan_options_kelurahan, key="bulan_kelurahan_tab2")
+                    with col3:
+                        puskesmas_options_kelurahan = ["ALL"] + sorted(df_kelurahan['Puskesmas'].unique().tolist())
+                        puskesmas_kelurahan = st.selectbox("🏥 Puskesmas", puskesmas_options_kelurahan, key="puskesmas_kelurahan_tab2")
+                    with col4:
+                        # Filter Kelurahan berdasarkan Puskesmas yang dipilih
+                        filtered_kelurahan = df_kelurahan
+                        if puskesmas_kelurahan != "ALL":
+                            filtered_kelurahan = filtered_kelurahan[filtered_kelurahan['Puskesmas'] == puskesmas_kelurahan]
+                        kelurahan_options_filtered = ["ALL"] + sorted(filtered_kelurahan['Kelurahan'].unique().tolist())
+                        kelurahan = st.selectbox("🏘️ Kelurahan", kelurahan_options_filtered, key="kelurahan_tab2")
+
                     if not df_kelurahan.empty and geojson_kelurahan:
                         st.subheader("Progress Capaian Penimbangan EPPGBM")
                         st.subheader("Score Card Pertumbuhan")
@@ -718,7 +682,7 @@ def main():
                             'Prevalensi Underweight',
                             'Prevalensi Obesitas'
                         ]
-                        selected_metric = st.selectbox("📊 Pilih Metrik untuk Grafik (Kelurahan)", metric_options, key="metric_kelurahan")
+                        selected_metric = st.selectbox("📊 Pilih Metrik untuk Grafik", metric_options, key="metric_kelurahan_tab2")
                         graph_fig, table_df = create_graph_and_table_kelurahan(df_kelurahan, selected_metric, tahun_kelurahan, bulan_kelurahan, puskesmas_kelurahan, kelurahan)
                         st.plotly_chart(graph_fig, use_container_width=True)
 
