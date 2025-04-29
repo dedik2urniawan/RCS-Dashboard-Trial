@@ -562,12 +562,13 @@ def main():
 
             if (not df_puskesmas.empty and geojson_puskesmas) or (not df_kelurahan.empty and geojson_kelurahan):
                 # Tabs untuk memisahkan analisis
+                st.subheader("📂 Pilih Dashboard EPPGBM")
                 tab1, tab2 = st.tabs(["Analisis Level Puskesmas", "Analisis Level Kelurahan"])
 
                 # Tab 1: Analisis Level Puskesmas
                 with tab1:
                     # Filter untuk level Puskesmas (dipindahkan ke dalam tab)
-                    st.subheader("Filter Data Level Puskesmas")
+                    st.subheader("🔎 Filter Data")
                     col1, col2, col3 = st.columns(3)
                     with col1:
                         tahun_options_puskesmas = ["ALL"] + sorted(df_puskesmas['Tahun'].astype(str).unique().tolist())
