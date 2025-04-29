@@ -1622,13 +1622,17 @@ def show_dashboard():
     if debug_mode:
         st.write("Kolom di df:", df.columns.tolist())
 
-    with st.sidebar.expander("🔎 Filter Data"):
-        # Filter Tahun
-        tahun_options = ["All"] + sorted(df['Tahun'].astype(str).unique().tolist() if 'Tahun' in df.columns else [])
-        tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
-
-        # Filter Jenis Laporan
-        jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Laporan Bulanan", "Laporan Tahunan"])
+    # Filter Data di Main Page (Diubah dari sidebar ke main page)
+    st.subheader("🔎 Filter Data")
+    with st.container():
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+        
+        with col1:
+            tahun_options = ["All"] + sorted(df['Tahun'].astype(str).unique().tolist() if 'Tahun' in df.columns else [])
+            tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
+        
+        with col2:
+            jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Laporan Bulanan", "Laporan Tahunan"])
 
         # Inisialisasi variabel untuk filter bulan/tribulan
         bulan_filter = "All"
@@ -1636,29 +1640,31 @@ def show_dashboard():
         bulan_filter_int = None
         bulan_range = None  # Untuk menyimpan rentang bulan berdasarkan tribulan
 
-        # Filter Bulan atau Tribulan berdasarkan jenis laporan
-        if jenis_laporan == "Laporan Bulanan":
-            bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist() if 'Bulan' in df.columns else [])
-            bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
-        else:  # Laporan Tahunan
-            tribulan_options = ["Tribulan I", "Tribulan II", "Tribulan III", "Tribulan IV"]
-            tribulan_filter = st.selectbox("📅 Pilih Tribulan", options=tribulan_options)
-            # Tentukan rentang bulan berdasarkan tribulan
-            if tribulan_filter == "Tribulan I":
-                bulan_range = [1, 2, 3]
-            elif tribulan_filter == "Tribulan II":
-                bulan_range = [4, 5, 6]
-            elif tribulan_filter == "Tribulan III":
-                bulan_range = [7, 8, 9]
-            elif tribulan_filter == "Tribulan IV":
-                bulan_range = [10, 11, 12]
+        with col3:
+            if jenis_laporan == "Laporan Bulanan":
+                bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist() if 'Bulan' in df.columns else [])
+                bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
+            else:  # Laporan Tahunan
+                tribulan_options = ["Tribulan I", "Tribulan II", "Tribulan III", "Tribulan IV"]
+                tribulan_filter = st.selectbox("📅 Pilih Tribulan", options=tribulan_options)
+                # Tentukan rentang bulan berdasarkan tribulan
+                if tribulan_filter == "Tribulan I":
+                    bulan_range = [1, 2, 3]
+                elif tribulan_filter == "Tribulan II":
+                    bulan_range = [4, 5, 6]
+                elif tribulan_filter == "Tribulan III":
+                    bulan_range = [7, 8, 9]
+                elif tribulan_filter == "Tribulan IV":
+                    bulan_range = [10, 11, 12]
 
-        # Filter Puskesmas
-        puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()))
-        kelurahan_options = ["All"]
-        if puskesmas_filter != "All":
-            kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
-        kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
+        with col4:
+            puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()))
+        
+        with col5:
+            kelurahan_options = ["All"]
+            if puskesmas_filter != "All":
+                kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
+            kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
 
     # Inisialisasi filtered_df dan previous_df
     filtered_df = df.copy()
@@ -1721,32 +1727,30 @@ def show_dashboard():
             agg_dict = {col: "sum" for col in numeric_columns}  # Gunakan sum alih-alih mean
             filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
-    # Tampilkan data terfilter
-    st.subheader("📝 Data Terfilter")
-    if filtered_df.empty:
-        st.warning("⚠️ Tidak ada data yang sesuai dengan filter.")
-    else:
-        st.dataframe(filtered_df, use_container_width=True)
-    
-    # Menu sidebar
-    menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
+    # Menu Utama dengan Tabs (Diubah dari sidebar radio ke tabs di main page)
+    st.subheader("📂 Pilih Dashboard")
+    tab1, tab2 = st.tabs(["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
 
-    if menu == "📊 Kelengkapan Data Laporan":
-        sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
-        if sub_menu == "✅ Compliance Rate":
+    # Tab 1: Kelengkapan Data Laporan
+    with tab1:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2 = st.tabs(["✅ Compliance Rate", "📋 Completeness Rate"])
+        with subtab1:
             compliance_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
-        elif sub_menu == "📋 Completeness Rate":
+        with subtab2:
             completeness_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
 
-    elif menu == "📈 Analisis Indikator Balita":
-        sub_analisis = st.sidebar.radio("📊 Pilih Sub Analisis", [
+    # Tab 2: Analisis Indikator Balita
+    with tab2:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2, subtab3, subtab4, subtab5 = st.tabs([
             "📈 Pertumbuhan & Perkembangan",
             "🥗 Masalah Gizi",
             "🍼 ASI Eksklusif & MPASI",
             "💊 Suplementasi Zat Gizi Mikro",
             "🧑‍⚕️ Tatalaksana Balita Bermasalah Gizi"
         ])
-        if sub_analisis == "📈 Pertumbuhan & Perkembangan":
+        with subtab1:
             metrics, summary_df, fig_bar, fig_line = growth_development_metrics(df, filtered_df, previous_df, desa_df, puskesmas_filter, kelurahan_filter, bulan_filter_int, tahun_filter)
 
             # Tombol Download untuk Pertumbuhan & Perkembangan (tanpa perubahan)
@@ -1845,7 +1849,7 @@ def show_dashboard():
                 mime="application/pdf"
             )
 
-        elif sub_analisis == "🥗 Masalah Gizi":
+        with subtab2:
             # Panggil nutrition_issues_analysis
             metrics, summary_df, fig, prevalence_charts = nutrition_issues_analysis(
                 filtered_df, previous_df, desa_df, puskesmas_filter, kelurahan_filter, bulan_filter_int
@@ -1964,7 +1968,7 @@ def show_dashboard():
                 mime="application/pdf"
             )
             
-        elif sub_analisis == "🍼 ASI Eksklusif & MPASI":
+        with subtab3:
             metrics, summary_df, charts = asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_filter, kelurahan_filter, bulan_filter_int)
 
             # Tombol Download untuk ASI Eksklusif & MPASI (tanpa perubahan)
@@ -2058,7 +2062,7 @@ def show_dashboard():
                 file_name=f"laporan_asi_mpasi_{puskesmas_filter}_{kelurahan_filter}_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
                 mime="application/pdf"
             )
-        elif sub_analisis == "💊 Suplementasi Zat Gizi Mikro":
+        with subtab4:
             metrics, summary_df, fig, comparison_fig = micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, puskesmas_filter, kelurahan_filter, bulan_filter_int)
             def generate_pdf_micronutrient(metrics, summary_df, fig, comparison_fig, filter_info):
                 pdf_buffer = io.BytesIO()
@@ -2171,7 +2175,7 @@ def show_dashboard():
                 file_name=f"laporan_suplementasi_zat_gizi_mikro_{puskesmas_filter}_{kelurahan_filter}_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
                 mime="application/pdf"
             )
-        elif sub_analisis == "🧑‍⚕️ Tatalaksana Balita Bermasalah Gizi":
+        with subtab5:
             metrics, summary_df, charts = tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, puskesmas_filter, kelurahan_filter)
             
             # Fungsi untuk menghasilkan PDF
@@ -2282,6 +2286,7 @@ def show_dashboard():
                 file_name=f"laporan_tatalaksana_{puskesmas_filter}_{kelurahan_filter}_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
                 mime="application/pdf"
             )
+
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
         'made with ❤️ by <a href="mailto:dedik2urniawan@gmail.com">dedik2urniawan@gmail.com</a>'
