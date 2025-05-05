@@ -289,9 +289,37 @@ def growth_development_metrics(df, filtered_df, previous_df, desa_df, puskesmas_
     summary_df["% N/D rill"] = (summary_df["Jumlah_balita_naik_berat_badannya_N"] / summary_df["Jumlah_balita_ditimbang"] * 100).round(2)
 
     summary_df = summary_df[["Puskesmas", "Jumlah_sasaran_balita", "Jumlah_balita_bulan_ini",
-                           "% Balita ditimbang dan diukur", "% N/D koreksi", "% N/D rill"]]
+                            "% Balita ditimbang dan diukur", "% N/D koreksi", "% N/D rill"]]
+
+    # Fungsi untuk highlight nilai > 100% pada % N/D koreksi dan % N/D rill
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        for col in ["% N/D koreksi", "% N/D rill"]:
+            if col in row.index and isinstance(row[col], (int, float)) and row[col] > 100:
+                idx = row.index.get_loc(col)
+                styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Terapkan styling dan formatting
+    styled_df = summary_df.style.apply(highlight_outliers, axis=1).format({
+        "Jumlah_sasaran_balita": "{:.0f}",
+        "Jumlah_balita_bulan_ini": "{:.0f}",
+        "% Balita ditimbang dan diukur": "{:.2f}%",
+        "% N/D koreksi": "{:.2f}%",
+        "% N/D rill": "{:.2f}%"
+    })
+
+    # Tampilkan tabel dengan highlight
     st.subheader("📋 Rekapitulasi Metrik Data Pertumbuhan")
-    st.dataframe(summary_df, use_container_width=True)
+    st.dataframe(styled_df, use_container_width=True)
+    st.markdown(
+    """
+    <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+        <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 100% pada indikator terkait) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
     # Tren Visualisasi
     st.subheader("📊 Tren %D/S, %N/D koreksi, dan %N/D riil per Puskesmas")
@@ -759,9 +787,64 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # Tabel rekapitulasi
+    # Tabel Rekapitulasi Capaian ASI Eksklusif & MPASI
     st.subheader("📋 Rekapitulasi Capaian ASI Eksklusif & MPASI")
-    st.dataframe(current_df)
+
+    # Definisikan fungsi highlight
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        targets = {
+            'Metrik Bayi Mendapat IMD (%)': 80,  # Target WHO: 80%
+            'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)': 50,  # Target WHO: 50%
+            'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)': 60,  # Target: 60%
+            'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)': 70,  # Target: 70%
+            'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)': 40,  # Target WHO: 40%
+            'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)': 50,  # Target: 50%
+            'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)': 30  # Target: 30%
+        }
+        for col in targets:
+            if col in row.index and pd.notna(row[col]) and row[col] > 100:  # Highlight jika > 100% (indikasi data tidak realistis)
+                idx = row.index.get_loc(col)
+                styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan data numerik dan bulatkan ke 2 digit desimal
+    cols_to_check = [
+        'Metrik Bayi Mendapat IMD (%)',
+        'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)',
+        'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)',
+        'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)',
+        'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)',
+        'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)',
+        'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)'
+    ]
+    for col in cols_to_check:
+        if col in current_df.columns:
+            current_df[col] = pd.to_numeric(current_df[col], errors='coerce').round(2)
+
+    # Terapkan styling dan formatting
+    styled_df = current_df.style.apply(highlight_outliers, axis=1).format({
+        'Metrik Bayi Mendapat IMD (%)': "{:.2f}%",
+        'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)': "{:.2f}%",
+        'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)': "{:.2f}%",
+        'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)': "{:.2f}%",
+        'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)': "{:.2f}%",
+        'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)': "{:.2f}%",
+        'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)': "{:.2f}%"
+    }, na_rep="N/A", precision=2)
+
+    # Render tabel dengan styling yang eksplisit
+    st.write(styled_df, unsafe_allow_html=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai yang melebihi 100% atau Data Outlier (indikasi data tidak realistis) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     
     return metrics, current_df, []
 # ----------------------------- #
@@ -1050,9 +1133,41 @@ def nutrition_issues_analysis(filtered_df, previous_df, desa_df, puskesmas_filte
         prevalence_charts.append(chart)
         st.plotly_chart(chart, use_container_width=True)
 
-    # Tabel rekapitulasi
+    # Tabel Rekapitulasi Prevalensi Masalah Gizi
     st.subheader("📋 Rekapitulasi Prevalensi Masalah Gizi")
-    st.dataframe(current_df)
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        targets = {
+            'Prevalensi Stunting (%)': 14,
+            'Prevalensi Wasting (%)': 7,
+            'Prevalensi Underweight (%)': 10,
+            'Prevalensi Obesitas (%)': 5
+        }
+        for col in targets:
+            if col in row.index and pd.notna(row[col]) and row[col] > targets[col]:
+                idx = row.index.get_loc(col)
+                styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan kolom prevalensi ada di summary_df
+    styled_df = current_df.style.apply(highlight_outliers, axis=1).format({
+        'Prevalensi Stunting (%)': "{:.2f}%",
+        'Prevalensi Wasting (%)': "{:.2f}%",
+        'Prevalensi Underweight (%)': "{:.2f}%",
+        'Prevalensi Obesitas (%)': "{:.2f}%"
+    }, na_rep="N/A",precision=2)
+    st.dataframe(styled_df, use_container_width=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 14% untuk Prevalensi Stunting, > 7% untuk Prevalensi Wasting, > 10% untuk Prevalensi Underweight, > 5% untuk Prevalensi Obesitas) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 
     return metrics, current_df, fig, prevalence_charts
 # ----------------------------- #
