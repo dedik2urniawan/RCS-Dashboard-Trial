@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import time
-from streamlit_lottie import st_lottie
 import requests
 
 # Fungsi untuk memuat animasi Lottie dari URL (tetap dipertahankan meskipun tidak digunakan)
