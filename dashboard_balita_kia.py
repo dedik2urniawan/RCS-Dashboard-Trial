@@ -543,7 +543,7 @@ def indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filte
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_indikator_bayi_kecil_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report()
         st.success("Laporan PDF siap diunduh!")
@@ -731,7 +731,7 @@ def pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kel
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_pemantauan_tumbuh_kembang_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report()
         st.success("Laporan PDF siap diunduh!")
@@ -972,7 +972,7 @@ def pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelu
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_pemantauan_tumbuh_kembang_apras_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report()
         st.success("Laporan PDF siap diunduh!")
@@ -1249,7 +1249,7 @@ def cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kel
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_cakupan_layanan_kesehatan_balita_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report(figures_list)
         st.success("Laporan PDF siap diunduh!")
@@ -1488,7 +1488,7 @@ def cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelu
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_cakupan_layanan_kesehatan_apras_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report(figures_list)
         st.success("Laporan PDF siap diunduh!")
@@ -1726,7 +1726,7 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key=f"download_cakupan_pkat_{periode_label}"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report(figures_list)
         st.success("Laporan PDF siap diunduh!")
@@ -1740,7 +1740,7 @@ def cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis
 # 🚀 Main Function
 # ----------------------------- #
 def show_dashboard():
-    """Menampilkan dashboard utama untuk indikator balita KIA."""
+    """Menampilkan dashboard utama untuk indikator balita KIA dengan filter dan menu di main page."""
     st.title("🍼 Dashboard Indikator Balita KIA")
     last_upload_time = get_last_upload_time()
     st.markdown(f"**📅 Data terakhir diperbarui:** {last_upload_time}")
@@ -1766,22 +1766,23 @@ def show_dashboard():
         current_year = datetime.now().year
         tahun_options = ["All"] + [str(y) for y in range(current_year - 4, current_year + 1)]
 
-    # Sidebar untuk filter
-    with st.sidebar:
-        st.header("🔎 Filter Data")
-        with st.container():
-            # Filter Tahun
+    # Filter Data di Main Page
+    st.subheader("🔎 Filter Data")
+    with st.container():
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+
+        with col1:
             tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options, help="Pilih tahun untuk analisis atau 'All' untuk semua tahun.")
 
-            # Filter Jenis Laporan
+        with col2:
             jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Bulanan", "Tahunan"], help="Pilih jenis laporan: Bulanan atau Tahunan.")
 
-            # Inisialisasi variabel untuk filter bulan/tribulan
-            bulan_filter_int = None
-            tribulan_filter = None
-            bulan_range = None
+        bulan_filter = "All"
+        tribulan_filter = None
+        bulan_filter_int = None
+        bulan_range = None
 
-            # Filter Bulan untuk Bulanan, Tribulan untuk Tahunan
+        with col3:
             if jenis_laporan == "Bulanan":
                 if "Bulan" in df.columns:
                     bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist())
@@ -1789,19 +1790,9 @@ def show_dashboard():
                     st.warning("⚠️ Kolom 'Bulan' tidak ditemukan. Filter bulan dinonaktifkan.")
                     bulan_options = ["All"]
                 bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options, help="Pilih bulan untuk laporan bulanan atau 'All'.")
-                if bulan_filter != "All":
-                    try:
-                        bulan_filter_int = int(bulan_filter)
-                        if bulan_filter_int < 1 or bulan_filter_int > 12:
-                            st.error("⚠️ Bulan harus antara 1 dan 12.")
-                            bulan_filter_int = None
-                    except ValueError:
-                        st.error("⚠️ Pilihan bulan tidak valid (harus berupa angka).")
-                        bulan_filter_int = None
-            else:  # Tahunan
+            else:
                 tribulan_options = ["Tribulan I", "Tribulan II", "Tribulan III", "Tribulan IV"]
                 tribulan_filter = st.selectbox("📅 Pilih Tribulan", options=tribulan_options, help="Pilih tribulan untuk laporan tahunan.")
-                # Tentukan rentang bulan berdasarkan tribulan
                 if tribulan_filter == "Tribulan I":
                     bulan_range = [1, 2, 3]
                 elif tribulan_filter == "Tribulan II":
@@ -1811,16 +1802,14 @@ def show_dashboard():
                 elif tribulan_filter == "Tribulan IV":
                     bulan_range = [10, 11, 12]
 
-            # Filter Puskesmas dan Kelurahan
+        with col4:
             puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique()), help="Pilih Puskesmas atau 'All'.")
+
+        with col5:
             kelurahan_options = ["All"]
             if puskesmas_filter != "All":
                 kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique())
             kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options, help="Pilih Kelurahan atau 'All'.")
-
-            # Tombol Reset Filter
-            if st.button("🔄 Reset Filter"):
-                st.rerun()
 
     # Inisialisasi filtered_df
     filtered_df = df.copy()
@@ -1840,12 +1829,17 @@ def show_dashboard():
             filtered_df = df.copy()
 
     # Terapkan filter berdasarkan jenis laporan
-    if jenis_laporan == "Bulanan" and bulan_filter_int is not None:
-        if "Bulan" in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df["Bulan"] == bulan_filter_int]
-            periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
-        else:
-            st.warning("⚠️ Tidak dapat memfilter bulan karena kolom 'Bulan' tidak ada.")
+    if jenis_laporan == "Bulanan" and bulan_filter != "All":
+        try:
+            bulan_filter_int = int(bulan_filter)
+            if "Bulan" in filtered_df.columns:
+                filtered_df = filtered_df[filtered_df["Bulan"] == bulan_filter_int]
+                periode_label += f" Bulan {bulan_filter_int}" if periode_label else f"Bulan {bulan_filter_int}"
+            else:
+                st.warning("⚠️ Tidak dapat memfilter bulan karena kolom 'Bulan' tidak ada.")
+        except ValueError:
+            st.error("⚠️ Pilihan bulan tidak valid (harus berupa angka).")
+            bulan_filter_int = None
     elif jenis_laporan == "Tahunan" and tribulan_filter is not None:
         if bulan_range is not None and "Bulan" in filtered_df.columns:
             available_months = df["Bulan"].unique()
@@ -1872,28 +1866,23 @@ def show_dashboard():
             agg_dict = {col: "sum" for col in numeric_columns}
             filtered_df = filtered_df.groupby(group_columns).agg(agg_dict).reset_index()
 
-    # Tampilkan data terfilter
-    st.subheader(f"📝 Data Terfilter ({periode_label})")
-    if filtered_df.empty:
-        st.warning("⚠️ Tidak ada data yang sesuai dengan filter yang dipilih.")
-    else:
-        st.dataframe(filtered_df, use_container_width=True)
-        st.caption(f"Jumlah baris data: {len(filtered_df)}")
+    # Menu Utama dengan Tabs di Main Page
+    st.subheader("📂 Pilih Dashboard")
+    tab1, tab2 = st.tabs(["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
 
-    # Menu sidebar untuk analisis
-    with st.sidebar:
-        st.header("📂 Pilih Analisis")
-        menu = st.radio("Pilih Dashboard", ["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Balita"])
-
-    if menu == "📊 Kelengkapan Data Laporan":
-        sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
-        if sub_menu == "✅ Compliance Rate":
+    # Tab 1: Kelengkapan Data Laporan
+    with tab1:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2 = st.tabs(["✅ Compliance Rate", "📋 Completeness Rate"])
+        with subtab1:
             compliance_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
-        elif sub_menu == "📋 Completeness Rate":
+        with subtab2:
             completeness_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter)
 
-    elif menu == "📈 Analisis Indikator Balita":
-        sub_analisis = st.sidebar.radio("📊 Pilih Sub Analisis", [
+    # Tab 2: Analisis Indikator Balita
+    with tab2:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2, subtab3, subtab4, subtab5, subtab6 = st.tabs([
             "👶 Indikator Bayi Kecil",
             "📈 Pemantauan Tumbuh Kembang Balita",
             "📉 Pemantauan Tumbuh Kembang Apras",
@@ -1901,23 +1890,20 @@ def show_dashboard():
             "🏡 Cakupan Layanan Kesehatan Apras",
             "🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)"
         ])
-        # Teruskan parameter filter yang relevan
-        if sub_analisis == "👶 Indikator Bayi Kecil":
+        with subtab1:
             indikator_bayi_kecil(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        elif sub_analisis == "📈 Pemantauan Tumbuh Kembang Balita":
+        with subtab2:
             pemantauan_tumbuh_kembang_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        elif sub_analisis == "📉 Pemantauan Tumbuh Kembang Apras":
+        with subtab3:
             pemantauan_tumbuh_kembang_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        elif sub_analisis == "🏥 Cakupan Layanan Kesehatan Balita":
+        with subtab4:
             cakupan_layanan_kesehatan_balita(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        elif sub_analisis == "🏡 Cakupan Layanan Kesehatan Apras":
+        with subtab5:
             cakupan_layanan_kesehatan_apras(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        elif sub_analisis == "🩺 Cakupan PKAT (Pemeriksaan Kesehatan Anak Terintegrasi)":
+        with subtab6:
             cakupan_pkat(filtered_df, desa_df, puskesmas_filter, kelurahan_filter, jenis_laporan, tahun_filter, bulan_filter_int, tribulan_filter)
-        else:
-            st.subheader(f"📊 {sub_analisis}")
-            st.info("🚧 Fitur ini belum diperbarui untuk mendukung filter baru. Segera hadir!")
 
+    # Footer
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
         'made with ❤️ by <a href="mailto:dedik2urniawan@gmail.com">dedik2urniawan@gmail.com</a>'
