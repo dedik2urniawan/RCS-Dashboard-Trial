@@ -86,7 +86,7 @@ def compliance_rate(filtered_df, desa_df, puskesmas_filter, kelurahan_filter):
 
     st.subheader("📊 Visualisasi Compliance Rate per Puskesmas")
     fig = px.bar(compliance_df, x="Puskesmas", y=compliance_df["Compliance Rate (%)"].str.rstrip('%').astype(float),
-                 text="Compliance Rate (%)", title="📊 Compliance Rate per Puskesmas", color_discrete_sequence=["#00C49F"])
+                 text="Compliance Rate (%)", title="📊 Compliance Rate per Puskesmas Indikator Balita Gizi", color_discrete_sequence=["#00C49F"])
     fig.update_traces(textposition='outside')
     fig.update_layout(xaxis_tickangle=-45, yaxis_title="Compliance Rate (%)", xaxis_title="Puskesmas", yaxis_range=[0, 110], title_x=0.5, height=500)
     st.plotly_chart(fig, key=f"compliance_chart_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
@@ -253,22 +253,174 @@ def growth_development_metrics(df, filtered_df, previous_df, desa_df, puskesmas_
                 previous_df["Jumlah_balita_overweight"].sum() / prev_total_bulan_ini * 100 if prev_total_bulan_ini else 0
             ),
         }
+
+        # Tambahkan kolom persentase ke filtered_df untuk semua metrik
+        metric_list = [
+            "Balita ditimbang (Proyeksi)",
+            "Balita ditimbang (Data Rill)",
+            "Balita ditimbang & diukur",
+            "Balita diukur PB/TB",
+            "Balita memiliki Buku KIA",
+            "Balita Naik BB",
+            "Balita Naik dengan D Koreksi",
+            "Balita Tidak Naik BB",
+            "Balita Tidak Timbang Bulan Lalu",
+            "Prevalensi Stunting",
+            "Prevalensi Wasting",
+            "Prevalensi Underweight",
+            "Prevalensi Overweight"
+        ]
+
+        metric_to_columns = {
+            "Balita ditimbang (Proyeksi)": ("Jumlah_balita_ditimbang", "Jumlah_sasaran_balita"),
+            "Balita ditimbang (Data Rill)": ("Jumlah_balita_ditimbang", "Jumlah_balita_bulan_ini"),
+            "Balita ditimbang & diukur": ("Jumlah_balita_ditimbang_dan_diukur", "Jumlah_balita_bulan_ini"),
+            "Balita diukur PB/TB": ("Jumlah_balita_diukur_PBTB", "Jumlah_balita_bulan_ini"),
+            "Balita memiliki Buku KIA": ("Jumlah_balita_punya_KIA", "Jumlah_balita_bulan_ini"),
+            "Balita Naik BB": ("Jumlah_balita_naik_berat_badannya_N", "Jumlah_balita_bulan_ini"),
+            "Balita Naik dengan D Koreksi": ("Jumlah_balita_naik_berat_badannya_N", "Jumlah_balita_ditimbang_terkoreksi_Daksen"),
+            "Balita Tidak Naik BB": ("Jumlah_balita_tidak_naik_berat_badannya_T", "Jumlah_balita_bulan_ini"),
+            "Balita Tidak Timbang Bulan Lalu": ("Jumlah_balita_tidak_ditimbang_bulan_lalu_O", "Jumlah_balita_bulan_ini"),
+            "Prevalensi Stunting": ("Jumlah_balita_stunting", "Jumlah_balita_diukur_PBTB"),
+            "Prevalensi Wasting": ("Jumlah_balita_wasting", "Jumlah_balita_ditimbang_dan_diukur"),
+            "Prevalensi Underweight": ("Jumlah_balita_underweight", "Jumlah_balita_ditimbang"),
+            "Prevalensi Overweight": ("Jumlah_balita_overweight", "Jumlah_balita_ditimbang")
+        }
+
+        # Hitung persentase per baris dan tambahkan ke filtered_df
+        for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+            filtered_df[metric] = (filtered_df[numerator_col] / filtered_df[denominator_col] * 100).round(2)
+            filtered_df[metric] = filtered_df[metric].replace([float('inf'), float('-inf')], 0).fillna(0)
+
     except Exception as e:
         st.error(f"Error menghitung metrik: {e}")
         return {}, pd.DataFrame(), None, None
 
     st.subheader("📊 Metrik Pertumbuhan & Perkembangan Balita")
+    # Informasi Metrik Pertumbuhan & Perkembangan Balita
+    with st.expander("📜 Definisi dan Insight Analisis Pertumbuhan & Perkembangan Balita", expanded=False):
+        st.markdown("""
+            <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
+            
+            ### 📜 Definisi Operasional dan Analisis Indikator
+
+            Berikut adalah definisi operasional, rumus perhitungan, serta analisis insight dari indikator-indikator yang digunakan untuk memantau pertumbuhan dan perkembangan balita dalam sistem kesehatan masyarakat. Rumus disajikan dalam format matematis untuk kejelasan, dengan penjelasan sederhana untuk memudahkan pemahaman.
+
+            #### 1. Persentase Balita Ditimbang (Proyeksi)
+            - **Definisi Operasional:** Persentase balita yang ditimbang terhadap total sasaran balita yang ditetapkan untuk periode pelaporan tertentu di wilayah kerja puskesmas. Indikator ini mengukur cakupan pemantauan berat badan berdasarkan proyeksi populasi.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Ditimbang (Proyeksi) (\\%)} = \\frac{\\text{Jumlah balita ditimbang}}{\\text{Total sasaran balita}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang ditimbang dari total sasaran balita yang direncanakan, lalu dikalikan 100 untuk mendapatkan persentase.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan bulanan dari laporan posyandu atau puskesmas, berdasarkan pencatatan jumlah balita yang ditimbang dan total sasaran yang ditetapkan oleh dinas kesehatan.  
+            - **Insight Analisis:** Persentase di bawah 80% dapat mengindikasikan rendahnya partisipasi balita dalam pemantauan atau keterbatasan akses ke posyandu. Peningkatan kampanye kesadaran masyarakat dan jadwal posyandu yang fleksibel dapat meningkatkan cakupan, mendukung deteksi dini masalah gizi.
+
+            #### 2. Persentase Balita Ditimbang (Data Riil)
+            - **Definisi Operasional:** Persentase balita yang ditimbang terhadap total balita yang ada pada bulan pelaporan di wilayah kerja puskesmas. Indikator ini mencerminkan cakupan pemantauan berat badan berdasarkan data aktual.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Ditimbang (Data Riil) (\\%)} = \\frac{\\text{Jumlah balita ditimbang}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang ditimbang dari total balita yang ada pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan pencatatan jumlah balita yang ditimbang dan total balita yang terdaftar berdasarkan data demografi.  
+            - **Insight Analisis:** Persentase di bawah 70% dapat menunjukkan tantangan dalam mobilitas kader atau kurangnya kesadaran orang tua. Pelatihan kader untuk meningkatkan cakupan kunjungan rumah dan edukasi komunitas dapat membantu mencapai target yang lebih tinggi.
+
+            #### 3. Persentase Balita Ditimbang & Diukur
+            - **Definisi Operasional:** Persentase balita yang ditimbang dan diukur tinggi badan/tinggi badan (TB/PB) terhadap total balita pada bulan pelaporan di wilayah kerja puskesmas. Indikator ini mengevaluasi pemantauan komprehensif pertumbuhan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Ditimbang & Diukur (\\%)} = \\frac{\\text{Jumlah balita ditimbang dan diukur}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang ditimbang sekaligus diukur dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan melalui laporan bulanan posyandu, dengan pencatatan jumlah balita yang menjalani pengukuran berat dan tinggi badan secara bersamaan.  
+            - **Insight Analisis:** Persentase di bawah 60% dapat mencerminkan keterbatasan alat ukur atau pelatihan tenaga kesehatan. Peningkatan penyediaan alat ukur dan pelatihan kader untuk pengukuran standar dapat meningkatkan akurasi data pertumbuhan.
+
+            #### 4. Persentase Balita Diukur PB/TB
+            - **Definisi Operasional:** Persentase balita yang diukur panjang badan/tinggi badan (PB/TB) terhadap total balita pada bulan pelaporan di wilayah kerja puskesmas. Indikator ini menilai pemantauan pertumbuhan linier.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Diukur PB/TB (\\%)} = \\frac{\\text{Jumlah balita diukur PB/TB}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang diukur PB/TB dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan pencatatan jumlah balita yang diukur PB/TB menggunakan alat standar seperti papan tinggi badan.  
+            - **Insight Analisis:** Persentase di bawah 50% dapat menunjukkan keterbatasan alat atau kurangnya keterampilan kader. Distribusi alat ukur yang memadai dan pelatihan berkala dapat meningkatkan cakupan, mendukung deteksi stunting.
+
+            #### 5. Persentase Balita Memiliki Buku KIA
+            - **Definisi Operasional:** Persentase balita yang memiliki Buku Kesehatan Ibu dan Anak (KIA) sebagai alat pemantauan pertumbuhan dan perkembangan di wilayah kerja puskesmas pada bulan pelaporan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Memiliki Buku KIA (\\%)} = \\frac{\\text{Jumlah balita dengan Buku KIA}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang memiliki Buku KIA dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan melalui laporan bulanan posyandu, dengan pencatatan jumlah balita yang membawa atau didokumentasikan memiliki Buku KIA.  
+            - **Insight Analisis:** Persentase di bawah 90% dapat mengindikasikan rendahnya distribusi Buku KIA atau kesadaran orang tua. Peningkatan sosialisasi pentingnya Buku KIA dan penyediaan gratis dapat meningkatkan kepemilikan, mendukung rekam medis yang lebih baik.
+
+            #### 6. Persentase Balita Naik Berat Badan
+            - **Definisi Operasional:** Persentase balita yang menunjukkan kenaikan berat badan dalam satu bulan pelaporan terhadap total balita di wilayah kerja puskesmas. Indikator ini mengukur kemajuan pertumbuhan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Naik BB (\\%)} = \\frac{\\text{Jumlah balita naik berat badan}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang naik berat badan dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan perbandingan berat badan bulanan balita yang dicatat oleh kader kesehatan.  
+            - **Insight Analisis:** Persentase di bawah 70% dapat menunjukkan masalah gizi atau intervensi yang kurang efektif. Intervensi gizi seperti PMT dan edukasi gizi dapat meningkatkan angka ini, mendukung pertumbuhan optimal.
+
+            #### 7. Persentase Balita Naik dengan Koreksi Data
+            - **Definisi Operasional:** Persentase balita yang menunjukkan kenaikan berat badan dengan koreksi data (data yang telah disesuaikan) terhadap total balita yang ditimbang dan terkoreksi di wilayah kerja puskesmas pada bulan pelaporan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Naik dengan Koreksi (\\%)} = \\frac{\\text{Jumlah balita naik berat badan}}{\\text{Total balita ditimbang terkoreksi}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang naik berat badan dari total balita yang ditimbang dan telah dikoreksi, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan dari laporan bulanan posyandu, dengan data koreksi berdasarkan standar Daksen (Data Kesehatan) untuk memastikan akurasi.  
+            - **Insight Analisis:** Persentase di bawah 75% dapat mencerminkan data yang tidak akurat atau intervensi gizi yang kurang optimal. Peningkatan validasi data dan program PMT dapat meningkatkan hasil, mendukung pemantauan yang lebih baik.
+
+            #### 8. Persentase Balita Tidak Naik Berat Badan
+            - **Definisi Operasional:** Persentase balita yang tidak menunjukkan kenaikan berat badan dalam satu bulan pelaporan terhadap total balita di wilayah kerja puskesmas. Indikator ini mengidentifikasi risiko gizi buruk.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Tidak Naik BB (\\%)} = \\frac{\\text{Jumlah balita tidak naik berat badan}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang tidak naik berat badan dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan pencatatan perbandingan berat badan bulanan oleh kader kesehatan.  
+            - **Insight Analisis:** Persentase di atas 30% dapat menunjukkan masalah gizi kronis atau kurangnya intervensi. Program suplementasi dan edukasi gizi dapat membantu mengurangi angka ini, mencegah stunting.
+
+            #### 9. Persentase Balita Tidak Timbang Bulan Lalu
+            - **Definisi Operasional:** Persentase balita yang tidak ditimbang pada bulan sebelumnya terhadap total balita pada bulan pelaporan di wilayah kerja puskesmas. Indikator ini mengukur kontinuitas pemantauan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Tidak Timbang Bulan Lalu (\\%)} = \\frac{\\text{Jumlah balita tidak ditimbang bulan lalu}}{\\text{Total balita bulan ini}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita yang tidak ditimbang bulan lalu dari total balita pada bulan tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan dari laporan bulanan posyandu, dengan perbandingan data timbangan bulan sebelumnya dan saat ini.  
+            - **Insight Analisis:** Persentase di atas 20% dapat mengindikasikan kurangnya kunjungan rutin atau koordinasi kader. Peningkatan jadwal kunjungan rumah dan pengingat kepada orang tua dapat menurunkan angka ini, memastikan pemantauan berkelanjutan.
+
+            #### 10. Prevalensi Stunting
+            - **Definisi Operasional:** Persentase balita dengan status stunting (tinggi badan/usia di bawah -2 SD menurut standar WHO) terhadap total balita yang diukur PB/TB pada bulan pelaporan di wilayah kerja puskesmas.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Prevalensi Stunting (\\%)} = \\frac{\\text{Jumlah balita stunting}}{\\text{Total balita diukur PB/TB}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita stunting dari total balita yang diukur PB/TB, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan pengukuran PB/TB dan klasifikasi stunting berdasarkan standar WHO.  
+            - **Insight Analisis:** Prevalensi di atas 20% (target WHO) dapat menunjukkan masalah gizi kronis. Intervensi seperti PMT dan edukasi gizi ibu dapat menurunkan angka ini, mencegah dampak perkembangan jangka panjang.
+
+            #### 11. Prevalensi Wasting
+            - **Definisi Operasional:** Persentase balita dengan status wasting (berat badan/tinggi badan di bawah -2 SD menurut standar WHO) terhadap total balita yang ditimbang dan diukur pada bulan pelaporan di wilayah kerja puskesmas.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Prevalensi Wasting (\\%)} = \\frac{\\text{Jumlah balita wasting}}{\\text{Total balita ditimbang dan diukur}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita wasting dari total balita yang ditimbang dan diukur, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan dari laporan bulanan posyandu, dengan pengukuran berat dan tinggi badan serta klasifikasi wasting berdasarkan standar WHO.  
+            - **Insight Analisis:** Prevalensi di atas 10% (target WHO) dapat mengindikasikan gizi akut. Intervensi cepat seperti PMT dan rujukan medis dapat mengurangi angka ini, mencegah risiko kematian.
+
+            #### 12. Prevalensi Underweight
+            - **Definisi Operasional:** Persentase balita dengan status underweight (berat badan/usia di bawah -2 SD menurut standar WHO) terhadap total balita yang ditimbang pada bulan pelaporan di wilayah kerja puskesmas.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Prevalensi Underweight (\\%)} = \\frac{\\text{Jumlah balita underweight}}{\\text{Total balita ditimbang}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita underweight dari total balita yang ditimbang, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu, dengan pengukuran berat badan dan klasifikasi underweight berdasarkan standar WHO.  
+            - **Insight Analisis:** Prevalensi di atas 15% (target WHO) dapat menunjukkan masalah gizi gabungan. Program suplementasi dan edukasi gizi dapat membantu menurunkan angka ini, mendukung pertumbuhan balita.
+
+            #### 13. Prevalensi Overweight
+            - **Definisi Operasional:** Persentase balita dengan status overweight (berat badan/usia di atas +2 SD menurut standar WHO) terhadap total balita yang ditimbang pada bulan pelaporan di wilayah kerja puskesmas.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Prevalensi Overweight (\\%)} = \\frac{\\text{Jumlah balita overweight}}{\\text{Total balita ditimbang}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita overweight dari total balita yang ditimbang, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan dari laporan bulanan posyandu, dengan pengukuran berat badan dan klasifikasi overweight berdasarkan standar WHO.  
+            - **Insight Analisis:** Prevalensi di atas 5% dapat mengindikasikan pergeseran pola makan yang tidak sehat. Edukasi gizi seimbang dan promosi aktivitas fisik dapat menurunkan angka ini, mencegah obesitas dini.
+
+            </div>
+        """, unsafe_allow_html=True)
+
     col1, col2, col3 = st.columns(3)
     for idx, (label, (value, change)) in enumerate(metrics.items()):
         with (col1 if idx % 3 == 0 else col2 if idx % 3 == 1 else col3):
             st.metric(label, f"{value:.2f}%", delta=change)
 
     # Bar chart
-    # Bar chart
     metrics_df = pd.DataFrame({"Metrik": list(metrics.keys()), "Persentase": [val[0] for val in metrics.values()]})
-    # Bulatkan Persentase ke 2 desimal
     metrics_df["Persentase"] = metrics_df["Persentase"].round(2)
-    # Buat kolom untuk label teks dengan format persen
     metrics_df["Persentase_Text"] = metrics_df["Persentase"].apply(lambda x: f"{x:.2f}%")
     fig_bar = px.bar(metrics_df, x="Metrik", y="Persentase", text="Persentase_Text", title="📊 Metrik Pertumbuhan & Perkembangan Balita", color="Metrik")
     fig_bar.update_layout(xaxis_tickangle=-45)
@@ -313,13 +465,13 @@ def growth_development_metrics(df, filtered_df, previous_df, desa_df, puskesmas_
     st.subheader("📋 Rekapitulasi Metrik Data Pertumbuhan")
     st.dataframe(styled_df, use_container_width=True)
     st.markdown(
-    """
-    <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
-        <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 100% pada indikator terkait) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 100% pada indikator terkait) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Tren Visualisasi
     st.subheader("📊 Tren %D/S, %N/D koreksi, dan %N/D riil per Puskesmas")
@@ -463,6 +615,393 @@ def growth_development_metrics(df, filtered_df, previous_df, desa_df, puskesmas_
         st.plotly_chart(fig_nutrition, key=f"nutrition_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
     else:
         st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren status gizi.")
+    
+    # 3.5.1 🚨 Analisis Deteksi Outlier pada Metrik Esensial (Pendekatan ASI Eksklusif)
+    st.subheader("🚨 Analisis Deteksi Outlier pada Metrik Esensial")
+    if not filtered_df.empty:
+        # Gunakan metric_to_columns yang sudah didefinisikan sebelumnya
+        # Deteksi Outlier Berdasarkan Numerator > Denominator atau Denominator = 0
+        outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+        for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+            # Kasus 1: Numerator > Denominator
+            outlier_data_num = filtered_df[
+                (filtered_df[numerator_col] > filtered_df[denominator_col]) & 
+                (filtered_df[denominator_col] != 0)
+            ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+            if not outlier_data_num.empty:
+                outlier_data_num["Metrik"] = metric
+                outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+                outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+                outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+                outlier_data_num["Alasan"] = "Numerator > Denominator"
+                outliers_df = pd.concat([outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+            # Kasus 2: Denominator = 0
+            outlier_data_zero = filtered_df[
+                (filtered_df[denominator_col] == 0) & 
+                (filtered_df[numerator_col] > 0)
+            ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+            if not outlier_data_zero.empty:
+                outlier_data_zero["Metrik"] = metric
+                outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+                outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+                outlier_data_zero["Rasio"] = "Infinity"
+                outlier_data_zero["Alasan"] = "Denominator = 0"
+                outliers_df = pd.concat([outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+        # 1. 🚨 Tabel Deteksi Outlier
+        st.subheader("🚨 Tabel Deteksi Outlier")
+        if not outliers_df.empty:
+            styled_outliers = outliers_df.style.apply(
+                lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+                axis=1
+            ).format({
+                "Numerator": "{:.0f}",
+                "Denominator": "{:.0f}",
+                "Rasio": lambda x: f"{x:.2f}%" if isinstance(x, (int, float)) else x
+            }).set_properties(**{
+                'border': '1px solid black',
+                'text-align': 'center',
+                'font-size': '14px',
+                'font-family': 'Arial, sans-serif'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+                {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+            ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+            st.write(styled_outliers, unsafe_allow_html=True)
+        else:
+            st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+        # 2. ⚙️ Analisis Outlier Statistik
+        from scipy import stats
+
+        # Daftar kolom metrik untuk analisis statistik (kolom persentase yang sudah dihitung)
+        cols_to_check = [
+            "Balita ditimbang (Proyeksi)",
+            "Balita ditimbang (Data Rill)",
+            "Balita ditimbang & diukur",
+            "Balita diukur PB/TB",
+            "Balita memiliki Buku KIA",
+            "Balita Naik BB",
+            "Balita Naik dengan D Koreksi",
+            "Balita Tidak Naik BB",
+            "Balita Tidak Timbang Bulan Lalu",
+            "Prevalensi Stunting",
+            "Prevalensi Wasting",
+            "Prevalensi Underweight",
+            "Prevalensi Overweight"
+        ]
+
+        # Inisialisasi DataFrame untuk outlier statistik
+        base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+        if puskesmas_filter != "All":
+            base_columns.insert(1, "Kelurahan")
+        statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+        st.subheader("⚙️ Analisis Outlier Statistik")
+        outlier_method = st.selectbox(
+            "Pilih Metode Deteksi Outlier Statistik",
+            ["Tidak Ada", "Z-Score", "IQR"],
+            key="outlier_method_select_growth"
+        )
+
+        if outlier_method != "Tidak Ada":
+            for metric in cols_to_check:
+                if metric not in filtered_df.columns:
+                    continue
+
+                # Pilih kolom berdasarkan filter
+                if puskesmas_filter == "All":
+                    metric_data = filtered_df[[metric, "Puskesmas"]].dropna()
+                else:
+                    metric_data = filtered_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+                if metric_data.empty:
+                    continue
+
+                # Z-Score Method
+                if outlier_method == "Z-Score":
+                    z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                    z_outlier_mask = abs(z_scores) > 3  # Threshold Z-Score > 3
+                    z_outliers = metric_data[z_outlier_mask].copy()
+                    if not z_outliers.empty:
+                        z_outliers["Metrik"] = metric
+                        z_outliers["Nilai"] = z_outliers[metric]
+                        z_outliers["Metode"] = "Z-Score"
+                        if puskesmas_filter == "All":
+                            z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                        else:
+                            z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                        statistical_outliers_df = pd.concat(
+                            [statistical_outliers_df, z_outliers_subset],
+                            ignore_index=True
+                        )
+
+                # IQR Method
+                elif outlier_method == "IQR":
+                    Q1 = metric_data[metric].quantile(0.25)
+                    Q3 = metric_data[metric].quantile(0.75)
+                    IQR = Q3 - Q1
+                    lower_bound = Q1 - 1.5 * IQR
+                    upper_bound = Q3 + 1.5 * IQR
+                    iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                    iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                    if not iqr_outliers.empty:
+                        iqr_outliers["Metrik"] = metric
+                        iqr_outliers["Nilai"] = iqr_outliers[metric]
+                        iqr_outliers["Metode"] = "IQR"
+                        if puskesmas_filter == "All":
+                            iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                        else:
+                            iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                        statistical_outliers_df = pd.concat(
+                            [statistical_outliers_df, iqr_outliers_subset],
+                            ignore_index=True
+                        )
+
+        # Tampilkan Tabel Outlier Statistik
+        if not statistical_outliers_df.empty:
+            st.markdown("### 📊 Tabel Outlier Statistik")
+            styled_stat_outliers = statistical_outliers_df.style.apply(
+                lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+                axis=1
+            ).format({
+                "Nilai": "{:.2f}%"
+            }).set_properties(**{
+                'border': '1px solid black',
+                'text-align': 'center',
+                'font-size': '14px',
+                'font-family': 'Arial, sans-serif'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+                {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+            ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+            st.write(styled_stat_outliers, unsafe_allow_html=True)
+        else:
+            if outlier_method != "Tidak Ada":
+                st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+        # 3. 📊 Visualisasi Outlier (Logis dan Statistik)
+        st.subheader("📊 Visualisasi Outlier")
+        show_outlier_viz = st.checkbox("Tampilkan Visualisasi Outlier", value=False, key="growth_metrics_viz_toggle")
+
+        if show_outlier_viz:
+            # Gabungkan outlier logis dan statistik
+            combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+            combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+            # Ganti "Infinity" dengan nilai besar untuk visualisasi
+            combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+            if not statistical_outliers_df.empty:
+                stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+                stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+                if "Kelurahan" in statistical_outliers_df.columns:
+                    stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+                else:
+                    stat_outliers["Kelurahan"] = "N/A"
+                combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+            if not combined_outliers.empty:
+                viz_type = st.selectbox(
+                    "Pilih Tipe Visualisasi Outlier",
+                    ["Heatmap", "Grafik Batang", "Boxplot"],
+                    key="outlier_viz_select_growth"
+                )
+
+                if viz_type == "Heatmap":
+                    pivot_df = combined_outliers.pivot_table(
+                        index="Puskesmas",
+                        columns="Metrik",
+                        values="Rasio",
+                        aggfunc="mean",
+                        fill_value=0
+                    )
+                    fig_heatmap = px.imshow(
+                        pivot_df,
+                        text_auto=True,
+                        aspect="auto",
+                        title="Heatmap Distribusi Outlier per Puskesmas",
+                        color_continuous_scale="Reds"
+                    )
+                    fig_heatmap.update_layout(
+                        xaxis_title="Metrik",
+                        yaxis_title="Puskesmas",
+                        coloraxis_colorbar_title="Rasio (%)"
+                    )
+                    st.plotly_chart(fig_heatmap, use_container_width=True)
+
+                elif viz_type == "Grafik Batang":
+                    count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                    fig_bar = px.bar(
+                        count_df,
+                        x="Metrik",
+                        y="Jumlah",
+                        color="Metode",
+                        barmode="group",
+                        title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                        text="Jumlah"
+                    )
+                    fig_bar.update_traces(textposition="outside")
+                    fig_bar.update_layout(
+                        xaxis_title="Metrik",
+                        yaxis_title="Jumlah Outlier",
+                        xaxis_tickangle=45,
+                        legend_title="Metode Deteksi"
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+                elif viz_type == "Boxplot":
+                    fig_box = px.box(
+                        combined_outliers,
+                        x="Metrik",
+                        y="Rasio",
+                        color="Metode",
+                        title="Boxplot Distribusi Outlier per Metrik dan Metode Deteksi",
+                        points="all"
+                    )
+                    fig_box.update_layout(
+                        xaxis_title="Metrik",
+                        yaxis_title="Rasio (%)",
+                        xaxis_tickangle=45,
+                        legend_title="Metode Deteksi"
+                    )
+                    st.plotly_chart(fig_box, use_container_width=True)
+            else:
+                st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+    else:
+        st.warning("⚠️ Tidak ada data untuk melakukan analisis deteksi outlier.")
+
+    # 3.6 📊 Analisis Komparasi Antar Wilayah
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        metric_list,
+        key="comp_metric_select_growth"
+    )
+    comp_df = filtered_df.groupby(["Puskesmas", "Kelurahan"])[selected_metric].mean().reset_index()
+    if not comp_df.empty:
+        fig_comp = px.bar(
+            comp_df,
+            x="Puskesmas",
+            y=selected_metric,
+            color="Kelurahan",
+            title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+            text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+            height=400
+        )
+        fig_comp.update_traces(textposition="outside")
+        fig_comp.update_layout(
+            xaxis_title="Puskesmas",
+            yaxis_title="Persentase (%)",
+            xaxis_tickangle=45,
+            yaxis_range=[0, 100],
+            legend_title="Kelurahan"
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 3.7 🔍 Analisis Korelasi Antar Metrik
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = filtered_df.groupby(["Puskesmas", "Kelurahan"])[metric_list].mean().reset_index()
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[metric_list].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 3.8 📅 Analisis Perubahan Persentase (Growth/Decline)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    # Gabungkan essential_trend_df dan nutrition_trend_df untuk analisis perubahan persentase
+    trend_df = pd.concat([essential_trend_df, nutrition_trend_df], ignore_index=True)
+    if not trend_df.empty:
+        trend_df = trend_df.sort_values("Bulan")
+        trend_df["Perubahan Persentase"] = trend_df.groupby("Metrik")["Persentase"].pct_change() * 100
+        trend_df["Perubahan Persentase"] = trend_df["Perubahan Persentase"].round(2)
+
+        # Tampilkan tabel perubahan
+        st.dataframe(
+            trend_df[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+                "Persentase": "{:.2f}%",
+                "Perubahan Persentase": "{:.2f}%"
+            }).set_properties(**{
+                'text-align': 'center',
+                'font-size': '14px',
+                'border': '1px solid black'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+                {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+            ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan"),
+            use_container_width=True
+        )
+
+        # Visualisasi perubahan dengan grafik garis
+        fig_change = px.line(
+            trend_df,
+            x="Bulan",
+            y="Perubahan Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+            title="📅 Tren Perubahan Persentase Metrik"
+        )
+        fig_change.update_traces(textposition="top center")
+        fig_change.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Perubahan Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_change, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+
+    # 3.9 📉 Analisis Distribusi Data (Histogram)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        metric_list,
+        key="dist_metric_select_growth"
+    )
+    dist_df = filtered_df.groupby(["Puskesmas", "Kelurahan"])[selected_metric_dist].mean().reset_index()
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=20,
+            title=f"📉 Distribusi {selected_metric_dist} di Seluruh Wilayah",
+            labels={"value": "Persentase (%)", "count": "Jumlah Wilayah"},
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Jumlah Wilayah",
+            bargap=0.1
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+        mean_val = dist_df[selected_metric_dist].mean().round(2)
+        median_val = dist_df[selected_metric_dist].median().round(2)
+        st.markdown(f"**Statistik Distribusi:** Rata-rata = {mean_val}%, Median = {median_val}%")
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
+
     # Mengembalikan data untuk PDF
     return metrics, summary_df, fig_bar, fig_line
 
@@ -691,6 +1230,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)",
     ]
 
+    # Hitung total agregat berdasarkan puskesmas_filter
     if puskesmas_filter == "All":
         # Hitung total untuk kabupaten
         total_imd = current_df["Jumlah_Bayi_Mendapat_IMD"].sum()
@@ -737,16 +1277,60 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (prev_total_telur_ikan_daging / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (prev_total_mpasi_baik / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
         }
-
-        for metric in metric_list:
-            current_value = current_values[metric]
-            previous_value = previous_values[metric]
-            metrics[metric] = calculate_asi_metric(current_value, previous_value)
     else:
-        for metric in metric_list:
-            current_value = current_df[metric].mean()
-            previous_value = previous_agg_df[metric].mean() if not previous_agg_df.empty else None
-            metrics[metric] = calculate_asi_metric(current_value, previous_value)
+        # Hitung total untuk puskesmas yang dipilih
+        selected_df = current_df[current_df["Puskesmas"] == puskesmas_filter]
+        total_imd = selected_df["Jumlah_Bayi_Mendapat_IMD"].sum()
+        total_newborn = selected_df["Jumlah_bayi_baru_lahir_bulan_ini_B"].sum()
+        total_asi_6bulan = selected_df["Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan"].sum()
+        total_bayi_6bulan = selected_df["Jumlah_Bayi_usia_6_bulan"].sum()
+        total_recall_asi = selected_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum()
+        total_recall = selected_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum()
+        total_bayi_05 = selected_df["Jumlah_Bayi_usia_0-5_bulan"].sum()
+        total_makanan_5kelompok = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum()
+        total_telur_ikan_daging = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum()
+        total_mpasi_baik = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum()
+        total_diwawancarai = selected_df["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"].sum()
+
+        # Hitung total sebelumnya
+        selected_prev_df = previous_agg_df[previous_agg_df["Puskesmas"] == puskesmas_filter] if not previous_agg_df.empty else pd.DataFrame()
+        prev_total_imd = selected_prev_df["Jumlah_Bayi_Mendapat_IMD"].sum() if not selected_prev_df.empty else 0
+        prev_total_newborn = selected_prev_df["Jumlah_bayi_baru_lahir_bulan_ini_B"].sum() if not selected_prev_df.empty else 0
+        prev_total_asi_6bulan = selected_prev_df["Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_bayi_6bulan = selected_prev_df["Jumlah_Bayi_usia_6_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_recall_asi = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum() if not selected_prev_df.empty else 0
+        prev_total_recall = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum() if not selected_prev_df.empty else 0
+        prev_total_bayi_05 = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_makanan_5kelompok = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum() if not selected_prev_df.empty else 0
+        prev_total_telur_ikan_daging = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum() if not selected_prev_df.empty else 0
+        prev_total_mpasi_baik = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum() if not selected_prev_df.empty else 0
+        prev_total_diwawancarai = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"].sum() if not selected_prev_df.empty else 0
+
+        # Hitung persentase untuk scorecard
+        current_values = {
+            "Metrik Bayi Mendapat IMD (%)": (total_imd / total_newborn * 100) if total_newborn != 0 else 0,
+            "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (total_asi_6bulan / total_bayi_6bulan * 100) if total_bayi_6bulan != 0 else 0,
+            "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (total_recall_asi / total_recall * 100) if total_recall != 0 else 0,
+            "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (total_recall / total_bayi_05 * 100) if total_bayi_05 != 0 else 0,
+            "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (total_makanan_5kelompok / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
+            "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (total_telur_ikan_daging / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
+            "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (total_mpasi_baik / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
+        }
+        previous_values = {
+            "Metrik Bayi Mendapat IMD (%)": (prev_total_imd / prev_total_newborn * 100) if prev_total_newborn != 0 else None,
+            "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (prev_total_asi_6bulan / prev_total_bayi_6bulan * 100) if prev_total_bayi_6bulan != 0 else None,
+            "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (prev_total_recall_asi / prev_total_recall * 100) if prev_total_recall != 0 else None,
+            "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (prev_total_recall / prev_total_bayi_05 * 100) if prev_total_bayi_05 != 0 else None,
+            "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (prev_total_makanan_5kelompok / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
+            "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (prev_total_telur_ikan_daging / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
+            "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (prev_total_mpasi_baik / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
+        }
+
+    for metric in metric_list:
+        current_value = current_values[metric]
+        previous_value = previous_values[metric]
+        metrics[metric] = calculate_asi_metric(current_value, previous_value)
+
 
     # Tampilkan scorecard
     st.subheader("📈 Scorecard Metrik ASI Eksklusif & MPASI")
@@ -779,6 +1363,13 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             text=selected_visualization,
         )
         fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+        fig.add_hline(
+            y=100,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Target: 100%",
+            annotation_position="top right",
+        )   
         fig.update_layout(
             xaxis_title=x_axis,
             yaxis_title=selected_visualization,
@@ -845,7 +1436,494 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         """,
         unsafe_allow_html=True
     )
+    # Deteksi Outlier Berdasarkan Numerator > Denominator atau Denominator = 0
+    metric_to_columns = {
+        "Metrik Bayi Mendapat IMD (%)": ("Jumlah_Bayi_Mendapat_IMD", "Jumlah_bayi_baru_lahir_bulan_ini_B"),
+        "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": ("Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan", "Jumlah_Bayi_usia_6_bulan"),
+        "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam", "Jumlah_Bayi_usia_0-5_bulan_yang_direcall"),
+        "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_direcall", "Jumlah_Bayi_usia_0-5_bulan"),
+        "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
+        "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
+        "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai")
+    }
+
+    outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        # Kasus 1: Numerator > Denominator
+        outlier_data_num = filtered_df[
+            (filtered_df[numerator_col] > filtered_df[denominator_col]) & 
+            (filtered_df[denominator_col] != 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_num.empty:
+            outlier_data_num["Metrik"] = metric
+            outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+            outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+            outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+            outlier_data_num["Alasan"] = "Numerator > Denominator"
+            outliers_df = pd.concat([outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = filtered_df[
+            (filtered_df[denominator_col] == 0) & 
+            (filtered_df[numerator_col] > 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_zero.empty:
+            outlier_data_zero["Metrik"] = metric
+            outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+            outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+            outlier_data_zero["Rasio"] = "Infinity"
+            outlier_data_zero["Alasan"] = "Denominator = 0"
+            outliers_df = pd.concat([outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+    # Tampilkan Tabel Outlier
+    if not outliers_df.empty:
+        st.subheader("🚨 Tabel Deteksi Outlier")
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: f"{x:.2f}%" if isinstance(x, (int, float)) else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
     
+    # Tambahan: Analisis Outlier dengan Z-Score dan IQR
+    from scipy import stats
+
+    # Daftar kolom metrik untuk analisis statistik
+    cols_to_check = [
+        'Metrik Bayi Mendapat IMD (%)',
+        'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)',
+        'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)',
+        'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)',
+        'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)',
+        'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)',
+        'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)'
+    ]
+
+    # Inisialisasi DataFrame untuk outlier statistik
+    # Kolom "Kelurahan" akan ditambahkan hanya jika tersedia
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    # Dropdown untuk memilih metode deteksi outlier statistik
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key="outlier_method_select"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in current_df.columns:
+                continue
+
+            # Pilih kolom berdasarkan filter
+            if puskesmas_filter == "All":
+                metric_data = current_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = current_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            # Z-Score Method
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3  # Threshold Z-Score > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    # Pilih kolom yang sesuai berdasarkan filter
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, z_outliers_subset],
+                        ignore_index=True
+                    )
+
+            # IQR Method
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    # Pilih kolom yang sesuai berdasarkan filter
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, iqr_outliers_subset],
+                        ignore_index=True
+                    )
+
+    # Tampilkan Tabel Outlier Statistik
+    if not statistical_outliers_df.empty:
+        st.markdown("### 📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+    # Visualisasi Outlier (Logis dan Statistik)
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox("Tampilkan Visualisasi Outlier", value=False, key="asi_mpasi_viz_toggle")
+    
+    if show_outlier_viz:
+        # Gabungkan outlier logis dan statistik
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        # Ganti "Infinity" dengan nilai besar untuk visualisasi
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key="outlier_viz_select"
+            )
+
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Metrik",
+                    y="Rasio",
+                    color="Metode",
+                    title="Boxplot Distribusi Outlier per Metrik dan Metode Deteksi",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Rasio (%)",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+    # 📈 Analisis Tren Metrik ASI Eksklusif dan MPASI
+    st.subheader("📈 Tren Metrik ASI Eksklusif dan MPASI")
+
+    # Persiapan data tren
+    metric_list = [
+        "Metrik Bayi Mendapat IMD (%)",
+        "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)",
+        "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)",
+        "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)",
+        "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)",
+        "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)",
+        "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)",
+    ]
+
+    # Mapping kolom numerator dan denominator untuk setiap metrik
+    metric_to_columns = {
+        "Metrik Bayi Mendapat IMD (%)": ("Jumlah_Bayi_Mendapat_IMD", "Jumlah_bayi_baru_lahir_bulan_ini_B"),
+        "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": ("Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan", "Jumlah_Bayi_usia_6_bulan"),
+        "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam", "Jumlah_Bayi_usia_0-5_bulan_yang_direcall"),
+        "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_direcall", "Jumlah_Bayi_usia_0-5_bulan"),
+        "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
+        "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
+        "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai")
+    }
+
+    # Salin filtered_df agar tidak mengubah aslinya
+    trend_data = filtered_df.copy()
+
+    # Hitung metrik persentase untuk setiap baris di trend_data
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        trend_data[metric] = (trend_data[numerator_col] / trend_data[denominator_col] * 100).round(2)
+        # Ganti NaN atau inf dengan 0 untuk kebersihan data
+        trend_data[metric] = trend_data[metric].replace([float('inf'), float('-inf')], 0).fillna(0)
+
+    # Filter dan agregasi data berdasarkan Bulan
+    trend_df = trend_data.groupby("Bulan")[metric_list].mean().reset_index()
+    trend_df = trend_df.melt(
+        id_vars="Bulan",
+        value_vars=metric_list,
+        var_name="Metrik",
+        value_name="Persentase"
+    )
+
+    # Bulatkan kolom Persentase menjadi 2 digit desimal
+    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+
+    # Tampilkan line chart untuk semua metrik
+    if not trend_df.empty:
+        fig_trend = px.line(
+            trend_df,
+            x="Bulan",
+            y="Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Persentase"].apply(lambda x: f"{x:.2f}"),  # Format teks menjadi 2 digit desimal
+            title="📈 Tren Metrik ASI Eksklusif dan MPASI dari Awal hingga Akhir Bulan"
+        )
+        fig_trend.update_traces(textposition="top center")
+        fig_trend.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            yaxis_range=[0, 100],
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_trend, key=f"asi_mpasi_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren ASI Eksklusif dan MPASI.")
+
+    # 4. 📊 Analisis Komparasi Antar Wilayah (diperbaiki)
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        metric_list,
+        key="comp_metric_select_asi"
+    )
+
+    # Tentukan kolom pengelompokan berdasarkan data yang ada
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in current_df.columns and puskesmas_filter != "All":
+        group_cols.append("Kelurahan")
+
+    comp_df = current_df.groupby(group_cols)[selected_metric].mean().reset_index()
+
+    if not comp_df.empty:
+        if "Kelurahan" in comp_df.columns:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                color="Kelurahan",
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah per Kelurahan",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100],
+                legend_title="Kelurahan"
+            )
+        else:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah (Tanpa Kelurahan)",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100]
+            )
+            st.warning("⚠️ Data 'Kelurahan' tidak tersedia. Analisis hanya berdasarkan 'Puskesmas'.")
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 5. 🔍 Analisis Korelasi Antar Metrik
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    # Tentukan kolom pengelompokan berdasarkan ketersediaan 'Kelurahan'
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in current_df.columns:
+        group_cols.append("Kelurahan")
+
+    corr_df = current_df.groupby(group_cols)[metric_list].mean().reset_index()
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[metric_list].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 6. 📅 Analisis Perubahan Persentase (Growth/Decline)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if not trend_df.empty:
+        trend_df = trend_df.sort_values("Bulan")
+        trend_df["Perubahan Persentase"] = trend_df.groupby("Metrik")["Persentase"].pct_change() * 100
+        trend_df["Perubahan Persentase"] = trend_df["Perubahan Persentase"].round(2)
+
+        # Tampilkan tabel perubahan
+        st.dataframe(
+            trend_df[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+                "Persentase": "{:.2f}%",
+                "Perubahan Persentase": "{:.2f}%"
+            }).set_properties(**{
+                'text-align': 'center',
+                'font-size': '14px',
+                'border': '1px solid black'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+                {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+            ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan"),
+            use_container_width=True
+        )
+
+        # Visualisasi perubahan dengan grafik garis
+        fig_change = px.line(
+            trend_df,
+            x="Bulan",
+            y="Perubahan Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+            title="📅 Tren Perubahan Persentase Metrik"
+        )
+        fig_change.update_traces(textposition="top center")
+        fig_change.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Perubahan Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_change, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+
+    # 7. 📉 Analisis Distribusi Data (Histogram)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        metric_list,
+        key="dist_metric_select_asi"
+    )
+    # Tentukan kolom pengelompokan berdasarkan ketersediaan 'Kelurahan'
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in current_df.columns:
+        group_cols.append("Kelurahan")
+
+    dist_df = current_df.groupby(group_cols)[selected_metric_dist].mean().reset_index()
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=10,
+            title=f"📉 Distribusi {selected_metric_dist}",
+            labels={selected_metric_dist: "Persentase (%)"},
+            marginal="rug",
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Frekuensi",
+            bargap=0.1,
+            showlegend=False
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
+  
     return metrics, current_df, []
 # ----------------------------- #
 # 🥗 Analisis Masalah Gizi
@@ -1175,6 +2253,65 @@ def nutrition_issues_analysis(filtered_df, previous_df, desa_df, puskesmas_filte
 # ----------------------------- #
 def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, puskesmas_filter, kelurahan_filter, jenis_laporan="Laporan Bulanan"):
     st.header("🧑‍⚕️ Analisis Tatalaksana Balita Bermasalah Gizi")
+    # Informasi Metrik Tatalaksana Balita Bermasalah Gizi
+    with st.expander("📜 Definisi dan Insight Analisis Tatalaksana Balita Bermasalah Gizi", expanded=False):
+        st.markdown("""
+            <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
+            
+            ### 📜 Definisi Operasional dan Analisis Indikator
+
+            Berikut adalah definisi operasional, rumus perhitungan, serta analisis insight dari indikator-indikator yang digunakan untuk memantau tatalaksana balita bermasalah gizi dalam sistem kesehatan masyarakat. Rumus disajikan dalam format matematis untuk kejelasan, dengan penjelasan sederhana untuk memudahkan pemahaman.
+
+            #### 1. Persentase Balita Gizi Kurang (Wasting) Usia 6-59 Bulan yang Mendapat PMT
+            - **Definisi Operasional:** Persentase balita usia 6-59 bulan dengan status gizi kurang (wasting) yang menerima pemberian makanan tambahan (PMT) berbahan pangan lokal hingga bulan pelaporan di wilayah kerja puskesmas. PMT bertujuan untuk memperbaiki status gizi balita yang kekurangan gizi akut.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Gizi Kurang Mendapat PMT (\\%)} = \\frac{\\text{Jumlah balita gizi kurang 6-59 bulan yang mendapat PMT}}{\\text{Total balita 6-59 bulan dengan gizi kurang}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita usia 6-59 bulan dengan gizi kurang yang mendapat PMT dari total balita gizi kurang pada kelompok usia tersebut, lalu dikalikan 100 untuk mendapatkan persentase.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan bulanan melalui laporan posyandu atau kunjungan rumah oleh kader kesehatan. Balita diidentifikasi sebagai gizi kurang berdasarkan pengukuran berat badan terhadap tinggi badan, lalu dicatat apakah mereka menerima PMT.  
+            - **Insight Analisis:** Persentase di bawah 80% dapat mengindikasikan kurangnya akses ke PMT atau identifikasi yang tidak memadai terhadap balita gizi kurang. Intervensi seperti peningkatan distribusi PMT berbahan pangan lokal dan pelatihan kader untuk skrining gizi dapat meningkatkan cakupan, membantu mengurangi risiko komplikasi akibat wasting.
+
+            #### 2. Persentase Balita BB Kurang (Underweight) Usia 6-59 Bulan yang Mendapat PMT
+            - **Definisi Operasional:** Persentase balita usia 6-59 bulan dengan berat badan kurang (underweight) yang menerima pemberian makanan tambahan (PMT) berbahan pangan lokal hingga bulan pelaporan di wilayah kerja puskesmas. Tujuannya adalah mendukung peningkatan berat badan balita.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita BB Kurang Mendapat PMT (\\%)} = \\frac{\\text{Jumlah balita BB kurang 6-59 bulan yang mendapat PMT}}{\\text{Total balita 6-59 bulan dengan BB kurang}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita usia 6-59 bulan dengan berat badan kurang yang mendapat PMT dari total balita BB kurang pada kelompok usia tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan posyandu atau puskesmas, dengan pencatatan pemberian PMT kepada balita yang diidentifikasi underweight berdasarkan pengukuran berat badan terhadap usia.  
+            - **Insight Analisis:** Jika persentase di bawah 80%, ini dapat menunjukkan adanya tantangan dalam distribusi PMT atau kurangnya kesadaran orang tua. Peningkatan edukasi gizi kepada orang tua dan penguatan rantai pasok PMT dapat meningkatkan cakupan, mendukung pemulihan status gizi balita.
+
+            #### 3. Persentase Balita BB Tidak Naik (T) Usia 6-59 Bulan yang Mendapat PMT
+            - **Definisi Operasional:** Persentase balita usia 6-59 bulan dengan berat badan tidak naik (T) yang menerima pemberian makanan tambahan (PMT) hingga bulan pelaporan di wilayah kerja puskesmas. Metrik ini mengevaluasi intervensi pada balita dengan pertumbuhan berat badan yang stagnan.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita BB Tidak Naik Mendapat PMT (\\%)} = \\frac{\\text{Jumlah balita BB tidak naik 6-59 bulan yang mendapat PMT}}{\\text{Total balita 6-59 bulan dengan BB tidak naik}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita usia 6-59 bulan dengan berat badan tidak naik yang mendapat PMT dari total balita pada kondisi tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan melalui pemantauan bulanan di posyandu, dengan pengukuran berat badan berkala untuk mengidentifikasi balita dengan BB tidak naik, diikuti pencatatan pemberian PMT.  
+            - **Insight Analisis:** Persentase di bawah 75% dapat mengindikasikan rendahnya deteksi dini BB tidak naik atau keterbatasan stok PMT. Pelatihan kader untuk pemantauan pertumbuhan berkala dan koordinasi dengan dinas kesehatan untuk stok PMT dapat meningkatkan cakupan, mencegah risiko gizi buruk.
+
+            #### 4. Persentase Kasus Gizi Buruk Bayi Usia 0-5 Bulan yang Mendapat Perawatan
+            - **Definisi Operasional:** Persentase bayi usia 0-5 bulan dengan kasus gizi buruk yang menerima perawatan intensif hingga bulan pelaporan di wilayah kerja puskesmas. Perawatan ini mencakup intervensi medis dan nutrisi untuk mencegah risiko kematian.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (\\%)} = \\frac{\\text{Jumlah bayi 0-5 bulan dengan gizi buruk yang mendapat perawatan}}{\\text{Total kasus gizi buruk bayi 0-5 bulan}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen bayi usia 0-5 bulan dengan gizi buruk yang mendapat perawatan dari total kasus gizi buruk pada kelompok usia tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan puskesmas atau rumah sakit, dengan pencatatan kasus gizi buruk berdasarkan diagnosis klinis dan tindak lanjut perawatan yang diberikan.  
+            - **Insight Analisis:** Persentase di bawah 90% menunjukkan adanya kesenjangan dalam akses perawatan, yang mungkin disebabkan oleh keterlambatan rujukan atau fasilitas kesehatan yang terbatas. Peningkatan koordinasi antara puskesmas dan rumah sakit serta pelatihan tenaga kesehatan untuk deteksi dini dapat meningkatkan cakupan perawatan, mengurangi risiko mortalitas.
+
+            #### 5. Persentase Kasus Gizi Buruk Balita Usia 6-59 Bulan yang Mendapat Perawatan
+            - **Definisi Operasional:** Persentase balita usia 6-59 bulan dengan kasus gizi buruk yang menerima perawatan intensif hingga bulan pelaporan di wilayah kerja puskesmas. Tujuannya adalah memastikan penanganan cepat untuk mencegah komplikasi lebih lanjut.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (\\%)} = \\frac{\\text{Jumlah balita 6-59 bulan dengan gizi buruk yang mendapat perawatan}}{\\text{Total kasus gizi buruk balita 6-59 bulan}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita usia 6-59 bulan dengan gizi buruk yang mendapat perawatan dari total kasus gizi buruk pada kelompok usia tersebut, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data dikumpulkan melalui laporan bulanan dari puskesmas atau rumah sakit, dengan pencatatan kasus gizi buruk dan tindak lanjut perawatan berdasarkan diagnosis klinis.  
+            - **Insight Analisis:** Persentase di bawah 90% dapat mencerminkan tantangan dalam rujukan atau kapasitas layanan kesehatan. Penguatan sistem rujukan dan penyediaan fasilitas rawat inap gizi di puskesmas dapat meningkatkan cakupan perawatan, mendukung pemulihan balita dari gizi buruk.
+
+            #### 6. Persentase Balita Stunting yang Dirujuk ke Rumah Sakit
+            - **Definisi Operasional:** Persentase balita dengan status stunting yang dirujuk dari puskesmas ke rumah sakit untuk penanganan lebih lanjut hingga bulan pelaporan di wilayah kerja puskesmas. Rujukan ini dilakukan untuk kasus stunting berat atau dengan komplikasi.  
+            - **Rumus Perhitungan:**  
+            $$ \\text{Balita Stunting Dirujuk ke RS (\\%)} = \\frac{\\text{Jumlah balita stunting yang dirujuk ke RS}}{\\text{Total balita dengan status stunting}} \\times 100 $$  
+            - **Penjelasan Sederhana:** Rumus ini menghitung persen balita stunting yang dirujuk ke rumah sakit dari total balita stunting, lalu dikalikan 100.  
+            - **Metode Pengumpulan Data:** Data diambil dari laporan bulanan puskesmas, dengan pencatatan kasus stunting berdasarkan pengukuran tinggi badan terhadap usia dan catatan rujukan ke rumah sakit.  
+            - **Insight Analisis:** Persentase di bawah 50% dapat menunjukkan rendahnya deteksi kasus stunting berat atau kurangnya koordinasi rujukan. Pelatihan tenaga kesehatan untuk identifikasi stunting berat dan peningkatan kerja sama dengan rumah sakit dapat memastikan penanganan yang tepat, mencegah dampak jangka panjang pada perkembangan anak.
+
+            </div>
+        """, unsafe_allow_html=True)
 
     # Filter data berdasarkan input
     filtered_df = df.copy()
@@ -1373,6 +2510,13 @@ def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, p
             labels={"Persentase": "Persentase (%)"}
         )
     fig_pmt.update_traces(textposition="outside")
+    fig_pmt.add_hline(
+    y=100,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="Target: 100%",
+    annotation_position="top right"
+    )
     fig_pmt.update_layout(
         xaxis_tickangle=-45,
         yaxis_range=[0, 110],
@@ -1420,6 +2564,13 @@ def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, p
             labels={"Persentase": "Persentase (%)"}
         )
     fig_malnutrisi.update_traces(textposition="outside")
+    fig_malnutrisi.add_hline(
+    y=100,
+    line_dash="dash",
+    line_color="red",
+    annotation_text="Target: 100%",
+    annotation_position="top right"
+    )
     fig_malnutrisi.update_layout(
         xaxis_tickangle=-45,
         yaxis_range=[0, 110],
@@ -1433,7 +2584,570 @@ def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, p
 
     # Tabel Rekapitulasi
     st.subheader("📋 Rekapitulasi Tatalaksana Balita Bermasalah Gizi")
-    st.dataframe(summary_df, use_container_width=True)
+
+    # Definisikan fungsi highlight
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        targets = {
+            'Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)': 100,
+            'Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)': 100,
+            'Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)': 100,
+            'Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)': 100,
+            'Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)': 100,
+            'Balita Stunting Dirujuk ke RS (%)': 100
+        }
+        for col in targets:
+            if col in row.index and pd.notna(row[col]) and row[col] > targets[col]:
+                idx = row.index.get_loc(col)
+                styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan data numerik dan bulatkan ke 2 digit desimal
+    cols_to_check = [
+        'Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)',
+        'Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)',
+        'Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)',
+        'Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)',
+        'Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)',
+        'Balita Stunting Dirujuk ke RS (%)'
+    ]
+    for col in cols_to_check:
+        if col in summary_df.columns:
+            summary_df[col] = pd.to_numeric(summary_df[col], errors='coerce').round(2)
+
+    # Terapkan styling dan formatting
+    styled_df = summary_df.style.apply(highlight_outliers, axis=1).format({
+        'Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)': "{:.2f}%",
+        'Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)': "{:.2f}%",
+        'Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)': "{:.2f}%",
+        'Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)': "{:.2f}%",
+        'Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)': "{:.2f}%",
+        'Balita Stunting Dirujuk ke RS (%)': "{:.2f}%"
+    }, na_rep="N/A", precision=2)
+
+    # Render tabel dengan styling yang eksplisit
+    st.write(styled_df, unsafe_allow_html=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai yang melebihi 100% (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    # 🚨 Tabel Deteksi Outlier
+    metrics_list = {
+        "Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_balita_gizi_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal_sampai_bulan_ini",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_gizi_kurang_dengan_atau_tanpa_stunting_sampai_bulan_ini"
+        ),
+        "Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_balita_BB_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_BB_kurang_yang_tidak_wasting_dengan_atau_tanpa_stunting_dan_tanpa_wasting"
+        ),
+        "Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_Balita_T659_mendapatkan_PMT",
+            "Jumlah_sasaran_balita_T"
+        ),
+        "Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)": (
+            "Jumlah_Kasus_Gizi_Buruk_bayi_0-5_Bulan_mendapat_perawatan_sampai_bulan_ini",
+            "Jumlah_kasus_gizi_buruk_bayi_0-5_Bulan_sampai_bulan_ini"
+        ),
+        "Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)": (
+            "Jumlah_Kasus_Gizi_Buruk_Balita_6-59_Bulan_mendapat_perawatan_sampai_bulan_ini",
+            "Jumlah_kasus_gizi_buruk_Balita_6-59_Bulan_sampai_bulan_ini"
+        ),
+        "Balita Stunting Dirujuk ke RS (%)": (
+            "Jumlah_balita_stunting_dirujuk_Puskesmas_ke_RS_sampai_bulan_ini",
+            "Jumlah_balita_stunting_sampai_bulan_ini"
+        )
+    }
+
+    outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+    for metric, (numerator_col, denominator_col) in metrics_list.items():
+        # Kasus 1: Numerator > Denominator
+        outlier_data_num = filtered_df[
+            (filtered_df[numerator_col] > filtered_df[denominator_col]) & 
+            (filtered_df[denominator_col] != 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_num.empty:
+            outlier_data_num["Metrik"] = metric
+            outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+            outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+            outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+            outlier_data_num["Alasan"] = "Numerator > Denominator"
+            outliers_df = pd.concat([outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = filtered_df[
+            (filtered_df[denominator_col] == 0) & 
+            (filtered_df[numerator_col] > 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_zero.empty:
+            outlier_data_zero["Metrik"] = metric
+            outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+            outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+            outlier_data_zero["Rasio"] = "Infinity"
+            outlier_data_zero["Alasan"] = "Denominator = 0"
+            outliers_df = pd.concat([outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+    # Tampilkan Tabel Deteksi Outlier
+    if not outliers_df.empty:
+        st.subheader("🚨 Tabel Deteksi Outlier")
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: "{:.2f}%".format(x) if isinstance(x, (int, float)) and x != float('inf') else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+    # ⚙️ Analisis Outlier Statistik
+    cols_to_check = [
+        "Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)",
+        "Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)",
+        "Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)",
+        "Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)",
+        "Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)",
+        "Balita Stunting Dirujuk ke RS (%)"
+    ]
+
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key="tatalaksana_outlier_method_select"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in current_df.columns:
+                continue
+
+            if puskesmas_filter == "All":
+                metric_data = current_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = current_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat([statistical_outliers_df, z_outliers_subset], ignore_index=True)
+
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat([statistical_outliers_df, iqr_outliers_subset], ignore_index=True)
+
+    # 📊 Tabel Outlier Statistik
+    if not statistical_outliers_df.empty:
+        st.subheader("📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+    # 📊 Visualisasi Outlier
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox("Tampilkan Visualisasi Outlier", value=False, key="tatalaksana_viz_toggle")
+    
+    if show_outlier_viz:
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key="tatalaksana_outlier_viz_select"
+            )
+
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Puskesmas",
+                    y="Rasio",
+                    color="Metrik",
+                    title="Boxplot Distribusi Outlier per Puskesmas dan Metrik",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Puskesmas",
+                    yaxis_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+        # 📈 Analisis Tren Metrik Tatalaksana Balita Bermasalah Gizi
+    st.subheader("📈 Tren Metrik Tatalaksana Balita Bermasalah Gizi")
+
+    # Persiapan data tren
+    metrics_list = {
+        "Balita Gizi Kurang (Wasting) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_balita_gizi_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal_sampai_bulan_ini",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_gizi_kurang_dengan_atau_tanpa_stunting_sampai_bulan_ini"
+        ),
+        "Balita BB Kurang (Underweight) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_balita_BB_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_BB_kurang_yang_tidak_wasting_dengan_atau_tanpa_stunting_dan_tanpa_wasting"
+        ),
+        "Balita BB Tidak Naik (T) 6-59 Bulan Mendapat PMT (%)": (
+            "Jumlah_Balita_T659_mendapatkan_PMT",
+            "Jumlah_sasaran_balita_T"
+        ),
+        "Kasus Gizi Buruk Bayi 0-5 Bulan Mendapat Perawatan (%)": (
+            "Jumlah_Kasus_Gizi_Buruk_bayi_0-5_Bulan_mendapat_perawatan_sampai_bulan_ini",
+            "Jumlah_kasus_gizi_buruk_bayi_0-5_Bulan_sampai_bulan_ini"
+        ),
+        "Kasus Gizi Buruk Balita 6-59 Bulan Mendapat Perawatan (%)": (
+            "Jumlah_Kasus_Gizi_Buruk_Balita_6-59_Bulan_mendapat_perawatan_sampai_bulan_ini",
+            "Jumlah_kasus_gizi_buruk_Balita_6-59_Bulan_sampai_bulan_ini"
+        ),
+        "Balita Stunting Dirujuk ke RS (%)": (
+            "Jumlah_balita_stunting_dirujuk_Puskesmas_ke_RS_sampai_bulan_ini",
+            "Jumlah_balita_stunting_sampai_bulan_ini"
+        )
+    }
+
+    # Salin filtered_df agar tidak mengubah aslinya
+    trend_data = filtered_df.copy()
+
+    # Hitung metrik persentase untuk setiap baris di trend_data
+    for metric, (numerator_col, denominator_col) in metrics_list.items():
+        trend_data[metric] = (trend_data[numerator_col] / trend_data[denominator_col] * 100).round(2)
+        # Ganti NaN atau inf dengan 0 untuk kebersihan data
+        trend_data[metric] = trend_data[metric].replace([float('inf'), float('-inf')], 0).fillna(0)
+
+    # Filter dan agregasi data berdasarkan Bulan
+    trend_df = trend_data.groupby("Bulan")[list(metrics_list.keys())].mean().reset_index()
+    trend_df = trend_df.melt(
+        id_vars="Bulan",
+        value_vars=list(metrics_list.keys()),
+        var_name="Metrik",
+        value_name="Persentase"
+    )
+
+    # Bulatkan kolom Persentase menjadi 2 digit desimal
+    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+
+    # Tampilkan line chart untuk semua metrik
+    if not trend_df.empty:
+        fig_trend = px.line(
+            trend_df,
+            x="Bulan",
+            y="Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Persentase"].apply(lambda x: f"{x:.2f}"),
+            title="📈 Tren Metrik Tatalaksana Balita Bermasalah Gizi dari Awal hingga Akhir Bulan"
+        )
+        fig_trend.update_traces(textposition="top center")
+        fig_trend.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            yaxis_range=[0, 100],
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_trend, key=f"tatalaksana_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren Tatalaksana Balita Bermasalah Gizi.")
+    # 4. 📊 Analisis Komparasi Antar Wilayah
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        metric_names,
+        key="comp_metric_select_tatalaksana"
+    )
+
+    # Gunakan summary_df karena metrik persentase ada di sini
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in summary_df.columns:
+        group_cols.append("Kelurahan")
+
+    comp_df = summary_df.groupby(group_cols)[selected_metric].mean().reset_index()
+    if not comp_df.empty:
+        if "Kelurahan" in comp_df.columns:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                color="Kelurahan",
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100],
+                legend_title="Kelurahan"
+            )
+        else:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah (Tanpa Kelurahan)",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100]
+            )
+            st.warning("⚠️ Data 'Kelurahan' tidak tersedia di summary_df.")
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 5. 🔍 Analisis Korelasi Antar Metrik
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = summary_df.groupby(group_cols)[metric_names].mean().reset_index()
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[metric_names].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik Tatalaksana Balita Bermasalah Gizi",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 6. 📅 Analisis Perubahan Persentase (Growth/Decline)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if 'Bulan' in filtered_df.columns:
+        trend_df = filtered_df.groupby(["Bulan"]).agg({
+            "Jumlah_balita_gizi_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal_sampai_bulan_ini": "sum",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_gizi_kurang_dengan_atau_tanpa_stunting_sampai_bulan_ini": "sum",
+            "Jumlah_balita_BB_kurang_usia_6-59_bulan_yang_mendapatkan_makanan_tambahan_berbahan_pangan_lokal": "sum",
+            "Jumlah_seluruh_balita_(usia_6-59_bulan)_BB_kurang_yang_tidak_wasting_dengan_atau_tanpa_stunting_dan_tanpa_wasting": "sum",
+            "Jumlah_Balita_T659_mendapatkan_PMT": "sum",
+            "Jumlah_sasaran_balita_T": "sum",
+            "Jumlah_Kasus_Gizi_Buruk_bayi_0-5_Bulan_mendapat_perawatan_sampai_bulan_ini": "sum",
+            "Jumlah_kasus_gizi_buruk_bayi_0-5_Bulan_sampai_bulan_ini": "sum",
+            "Jumlah_Kasus_Gizi_Buruk_Balita_6-59_Bulan_mendapat_perawatan_sampai_bulan_ini": "sum",
+            "Jumlah_kasus_gizi_buruk_Balita_6-59_Bulan_sampai_bulan_ini": "sum",
+            "Jumlah_balita_stunting_dirujuk_Puskesmas_ke_RS_sampai_bulan_ini": "sum",
+            "Jumlah_balita_stunting_sampai_bulan_ini": "sum",
+        }).reset_index()
+
+        # Hitung metrik persentase per bulan
+        for metric_name, (numerator, denominator) in metrics_list.items():
+            trend_df[metric_name] = trend_df.apply(
+                lambda x: (x[numerator] / x[denominator] * 100) if x[denominator] != 0 else 0, axis=1
+            ).round(2)
+
+        # Buat DataFrame untuk visualisasi tren
+        trend_melted = trend_df.melt(
+            id_vars=["Bulan"],
+            value_vars=metric_names,
+            var_name="Metrik",
+            value_name="Persentase"
+        )
+
+        if not trend_melted.empty:
+            trend_melted = trend_melted.sort_values("Bulan")
+            trend_melted["Perubahan Persentase"] = trend_melted.groupby("Metrik")["Persentase"].pct_change() * 100
+            trend_melted["Perubahan Persentase"] = trend_melted["Perubahan Persentase"].round(2)
+
+            # Tampilkan tabel perubahan
+            st.dataframe(
+                trend_melted[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+                    "Persentase": "{:.2f}%",
+                    "Perubahan Persentase": "{:.2f}%"
+                }).set_properties(**{
+                    'text-align': 'center',
+                    'font-size': '14px',
+                    'border': '1px solid black'
+                }).set_table_styles([
+                    {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+                    {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+                ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan"),
+                use_container_width=True
+            )
+
+            # Visualisasi perubahan dengan grafik garis
+            fig_change = px.line(
+                trend_melted,
+                x="Bulan",
+                y="Perubahan Persentase",
+                color="Metrik",
+                markers=True,
+                text=trend_melted["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+                title="📅 Tren Perubahan Persentase Metrik Tatalaksana Balita Bermasalah Gizi"
+            )
+            fig_change.update_traces(textposition="top center")
+            fig_change.update_layout(
+                xaxis_title="Bulan",
+                yaxis_title="Perubahan Persentase (%)",
+                xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                legend_title="Metrik",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_change, use_container_width=True)
+        else:
+            st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+    else:
+        st.warning("⚠️ Kolom 'Bulan' tidak tersedia di data. Analisis perubahan persentase tidak dapat dilakukan.")
+
+    # 7. 📉 Analisis Distribusi Data (Histogram)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        metric_names,
+        key="dist_metric_select_tatalaksana"
+    )
+
+    dist_df = summary_df.groupby(group_cols)[selected_metric_dist].mean().reset_index()
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=20,
+            title=f"📉 Distribusi {selected_metric_dist} di Seluruh Wilayah",
+            labels={"value": "Persentase (%)", "count": "Jumlah Wilayah"},
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Jumlah Wilayah",
+            bargap=0.1
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+        # Tambahan statistik dasar
+        mean_val = dist_df[selected_metric_dist].mean().round(2)
+        median_val = dist_df[selected_metric_dist].median().round(2)
+        st.markdown(f"**Statistik Distribusi:** Rata-rata = {mean_val}%, Median = {median_val}%")
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
 
     return metrics, summary_df, charts
 # ----------------------------- #
@@ -1583,6 +3297,7 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
         "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)",
     ]
 
+    # Hitung total agregat berdasarkan puskesmas_filter
     if puskesmas_filter == "All":
         # Hitung total untuk kabupaten
         total_bayi_6_11_vita = current_df["Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A"].sum()
@@ -1611,16 +3326,42 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
             "Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)": (prev_total_anak_12_59_vita / prev_total_anak_12_59 * 100) if prev_total_anak_12_59 != 0 else None,
             "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)": (prev_total_balita_suplemen / prev_total_balita_underweight * 100) if prev_total_balita_underweight != 0 else None,
         }
-
-        for metric in metric_list:
-            current_value = current_values[metric]
-            previous_value = previous_values[metric]
-            metrics[metric] = calculate_metric(current_value, previous_value)
     else:
-        for metric in metric_list:
-            current_value = current_df[metric].mean()
-            previous_value = previous_agg_df[metric].mean() if not previous_agg_df.empty else None
-            metrics[metric] = calculate_metric(current_value, previous_value)
+        # Hitung total untuk puskesmas yang dipilih
+        selected_df = current_df[current_df["Puskesmas"] == puskesmas_filter]
+        total_bayi_6_11_vita = selected_df["Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A"].sum()
+        total_bayi_6_11 = selected_df["Jumlah_bayi_6-11_bulan"].sum()
+        total_anak_12_59_vita = selected_df["Jumlah_anak_12-59_bulan_mendapat_Vitamin_A"].sum()
+        total_anak_12_59 = selected_df["Jumlah_anak_12-59_bulan"].sum()
+        total_balita_suplemen = selected_df["Jumlah_balita_yang_mendapatkan_suplementasi_gizi_mikro"].sum()
+        total_balita_underweight = selected_df["Jumlah_balita_Underweight_suplemen"].sum()
+
+        # Hitung total sebelumnya
+        selected_prev_df = previous_agg_df[previous_agg_df["Puskesmas"] == puskesmas_filter] if not previous_agg_df.empty else pd.DataFrame()
+        prev_total_bayi_6_11_vita = selected_prev_df["Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A"].sum() if not selected_prev_df.empty else 0
+        prev_total_bayi_6_11 = selected_prev_df["Jumlah_bayi_6-11_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_anak_12_59_vita = selected_prev_df["Jumlah_anak_12-59_bulan_mendapat_Vitamin_A"].sum() if not selected_prev_df.empty else 0
+        prev_total_anak_12_59 = selected_prev_df["Jumlah_anak_12-59_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_balita_suplemen = selected_prev_df["Jumlah_balita_yang_mendapatkan_suplementasi_gizi_mikro"].sum() if not selected_prev_df.empty else 0
+        prev_total_balita_underweight = selected_prev_df["Jumlah_balita_Underweight_suplemen"].sum() if not selected_prev_df.empty else 0
+
+        # Hitung persentase untuk scorecard
+        current_values = {
+            "Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)": (total_bayi_6_11_vita / total_bayi_6_11 * 100) if total_bayi_6_11 != 0 else 0,
+            "Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)": (total_anak_12_59_vita / total_anak_12_59 * 100) if total_anak_12_59 != 0 else 0,
+            "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)": (total_balita_suplemen / total_balita_underweight * 100) if total_balita_underweight != 0 else 0,
+        }
+        previous_values = {
+            "Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)": (prev_total_bayi_6_11_vita / prev_total_bayi_6_11 * 100) if prev_total_bayi_6_11 != 0 else None,
+            "Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)": (prev_total_anak_12_59_vita / prev_total_anak_12_59 * 100) if prev_total_anak_12_59 != 0 else None,
+            "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)": (prev_total_balita_suplemen / prev_total_balita_underweight * 100) if prev_total_balita_underweight != 0 else None,
+        }
+
+    # Hitung metrik untuk scorecard
+    for metric in metric_list:
+        current_value = current_values[metric]
+        previous_value = previous_values[metric]
+        metrics[metric] = calculate_metric(current_value, previous_value)
 
     # Tampilkan scorecard
     st.subheader("📊 Metrik Suplementasi Gizi Mikro")
@@ -1654,6 +3395,14 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
             text=selected_visualization,
         )
         fig.update_traces(texttemplate='%{text:.2f}%', textposition='outside')
+        # Tambahkan garis target pada 100%
+        fig.add_hline(
+            y=100,
+            line_dash="dash",
+            line_color="red",
+            annotation_text="Target: 100%",
+            annotation_position="top right"
+        )
         fig.update_layout(
             xaxis_title=x_axis,
             yaxis_title=selected_visualization,
@@ -1715,7 +3464,492 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
 
     # Tabel rekapitulasi
     st.subheader("📋 Rekapitulasi Suplementasi Zat Gizi Mikro")
-    st.dataframe(current_df)
+
+    # Definisikan fungsi highlight
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        targets = {
+            'Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)': 100,
+            'Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)': 100,
+            'Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)': 100
+        }
+        for col in targets:
+            if col in row.index and pd.notna(row[col]):
+                # Highlight jika > 100% atau denominator == 0 (indikasi data bermasalah)
+                if row[col] > 100 or (
+                    col == 'Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)' and row['Jumlah_bayi_6-11_bulan'] == 0
+                ) or (
+                    col == 'Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)' and row['Jumlah_anak_12-59_bulan'] == 0
+                ) or (
+                    col == 'Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)' and row['Jumlah_balita_Underweight_suplemen'] == 0
+                ):
+                    idx = row.index.get_loc(col)
+                    styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan data numerik dan bulatkan ke 2 digit desimal
+    cols_to_check = [
+        'Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)',
+        'Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)',
+        'Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)'
+    ]
+    for col in cols_to_check:
+        if col in current_df.columns:
+            current_df[col] = pd.to_numeric(current_df[col], errors='coerce').round(2)
+
+    # Terapkan styling dan formatting
+    styled_df = current_df.style.apply(highlight_outliers, axis=1).format({
+        'Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)': "{:.2f}%",
+        'Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)': "{:.2f}%",
+        'Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)': "{:.2f}%"
+    }, na_rep="N/A", precision=2)
+
+    # Render tabel dengan styling yang eksplisit
+    st.write(styled_df, unsafe_allow_html=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai yang melebihi 100% atau denominator nol (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    # Deteksi Outlier Berdasarkan Numerator > Denominator atau Denominator = 0
+    metric_to_columns = {
+        "Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)": ("Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A", "Jumlah_bayi_6-11_bulan"),
+        "Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)": ("Jumlah_anak_12-59_bulan_mendapat_Vitamin_A", "Jumlah_anak_12-59_bulan"),
+        "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)": ("Jumlah_balita_yang_mendapatkan_suplementasi_gizi_mikro", "Jumlah_balita_Underweight_suplemen")
+    }
+
+    outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        # Kasus 1: Numerator > Denominator
+        outlier_data_num = filtered_df[
+            (filtered_df[numerator_col] > filtered_df[denominator_col]) & 
+            (filtered_df[denominator_col] != 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_num.empty:
+            outlier_data_num["Metrik"] = metric
+            outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+            outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+            outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+            outlier_data_num["Alasan"] = "Numerator > Denominator"
+            outliers_df = pd.concat([outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = filtered_df[
+            (filtered_df[denominator_col] == 0) & 
+            (filtered_df[numerator_col] > 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_zero.empty:
+            outlier_data_zero["Metrik"] = metric
+            outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+            outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+            outlier_data_zero["Rasio"] = "Infinity"
+            outlier_data_zero["Alasan"] = "Denominator = 0"
+            outliers_df = pd.concat([outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]], ignore_index=True)
+
+    # Tampilkan Tabel Deteksi Outlier
+    if not outliers_df.empty:
+        st.subheader("🚨 Tabel Deteksi Outlier")
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: "{:.2f}%".format(x) if isinstance(x, (int, float)) and x != float('inf') else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+    # Tambahan: Analisis Outlier dengan Z-Score dan IQR
+    from scipy import stats
+
+    # Daftar kolom metrik untuk analisis statistik
+    cols_to_check = [
+        "Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)",
+        "Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)",
+        "Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)"
+    ]
+
+    # Inisialisasi DataFrame untuk outlier statistik
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    # Dropdown untuk memilih metode deteksi outlier statistik
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key="micronutrients_outlier_method_select"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in current_df.columns:
+                continue
+
+            # Pilih kolom berdasarkan filter
+            if puskesmas_filter == "All":
+                metric_data = current_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = current_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            # Z-Score Method
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3  # Threshold Z-Score > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, z_outliers_subset],
+                        ignore_index=True
+                    )
+
+            # IQR Method
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, iqr_outliers_subset],
+                        ignore_index=True
+                    )
+
+    # Tampilkan Tabel Outlier Statistik
+    if not statistical_outliers_df.empty:
+        st.subheader("📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+    # Visualisasi Outlier (Logis dan Statistik)
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox("Tampilkan Visualisasi Outlier", value=False, key="micronutrients_viz_toggle")
+    
+    if show_outlier_viz:
+        # Gabungkan outlier logis dan statistik
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        # Ganti "Infinity" dengan nilai besar untuk visualisasi
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            # Pilih tipe visualisasi
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key="micronutrients_outlier_viz_select"
+            )
+
+            # Heatmap: Distribusi Rasio Outlier per Puskesmas dan Metrik
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            # Grafik Batang: Jumlah Outlier per Metrik dan Metode
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+            # Boxplot: Distribusi Rasio Outlier per Metrik
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Metrik",
+                    y="Rasio",
+                    color="Metode",
+                    title="Distribusi Rasio Outlier per Metrik dan Metode Deteksi",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Rasio (%)",
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+    # 4. 📊 Analisis Komparasi Antar Wilayah
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        metric_list,
+        key="comp_metric_select_micro"
+    )
+
+    # Gunakan current_df karena metrik persentase ada di sini
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in current_df.columns and puskesmas_filter != "All":
+        group_cols.append("Kelurahan")
+
+    comp_df = current_df.groupby(group_cols)[selected_metric].mean().reset_index()
+    if not comp_df.empty:
+        if "Kelurahan" in comp_df.columns:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                color="Kelurahan",
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100],
+                legend_title="Kelurahan"
+            )
+        else:
+            fig_comp = px.bar(
+                comp_df,
+                x="Puskesmas",
+                y=selected_metric,
+                title=f"📊 Komparasi {selected_metric} Antar Wilayah (Tanpa Kelurahan)",
+                text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+                height=400
+            )
+            fig_comp.update_traces(textposition="outside")
+            fig_comp.update_layout(
+                xaxis_title="Puskesmas",
+                yaxis_title="Persentase (%)",
+                xaxis_tickangle=45,
+                yaxis_range=[0, 100]
+            )
+            st.warning("⚠️ Data 'Kelurahan' tidak tersedia. Analisis hanya berdasarkan 'Puskesmas'.")
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 5. 🔍 Analisis Korelasi Antar Metrik
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = current_df.groupby(group_cols)[metric_list].mean().reset_index()
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[metric_list].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik Suplementasi Zat Gizi Mikro",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 6. 📅 Analisis Perubahan Persentase (Growth/Decline)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if 'Bulan' in filtered_df.columns:
+        trend_df = filtered_df.groupby(["Bulan"]).agg({
+            "Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A": "sum",
+            "Jumlah_bayi_6-11_bulan": "sum",
+            "Jumlah_anak_12-59_bulan_mendapat_Vitamin_A": "sum",
+            "Jumlah_anak_12-59_bulan": "sum",
+            "Jumlah_balita_yang_mendapatkan_suplementasi_gizi_mikro": "sum",
+            "Jumlah_balita_Underweight_suplemen": "sum",
+        }).reset_index()
+
+        # Hitung metrik persentase per bulan
+        trend_df["Jumlah Bayi 6-11 Bulan Mendapat Vitamin A (%)"] = trend_df.apply(
+            lambda x: (x["Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A"] / x["Jumlah_bayi_6-11_bulan"] * 100)
+            if x["Jumlah_bayi_6-11_bulan"] != 0 else 0, axis=1
+        ).round(2)
+        trend_df["Jumlah Anak 12-59 Bulan Mendapat Vitamin A (%)"] = trend_df.apply(
+            lambda x: (x["Jumlah_anak_12-59_bulan_mendapat_Vitamin_A"] / x["Jumlah_anak_12-59_bulan"] * 100)
+            if x["Jumlah_anak_12-59_bulan"] != 0 else 0, axis=1
+        ).round(2)
+        trend_df["Metrik Balita yang Mendapatkan Suplementasi Gizi Mikro (%)"] = trend_df.apply(
+            lambda x: (x["Jumlah_balita_yang_mendapatkan_suplementasi_gizi_mikro"] / x["Jumlah_balita_Underweight_suplemen"] * 100)
+            if x["Jumlah_balita_Underweight_suplemen"] != 0 else 0, axis=1
+        ).round(2)
+
+        trend_melted = trend_df.melt(
+            id_vars=["Bulan"],
+            value_vars=metric_list,
+            var_name="Metrik",
+            value_name="Persentase"
+        )
+
+        if not trend_melted.empty:
+            trend_melted = trend_melted.sort_values("Bulan")
+            trend_melted["Perubahan Persentase"] = trend_melted.groupby("Metrik")["Persentase"].pct_change() * 100
+            trend_melted["Perubahan Persentase"] = trend_melted["Perubahan Persentase"].round(2)
+
+            # Tampilkan tabel perubahan
+            st.dataframe(
+                trend_melted[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+                    "Persentase": "{:.2f}%",
+                    "Perubahan Persentase": "{:.2f}%"
+                }).set_properties(**{
+                    'text-align': 'center',
+                    'font-size': '14px',
+                    'border': '1px solid black'
+                }).set_table_styles([
+                    {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+                    {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+                ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan"),
+                use_container_width=True
+            )
+
+            # Visualisasi perubahan dengan grafik garis
+            fig_change = px.line(
+                trend_melted,
+                x="Bulan",
+                y="Perubahan Persentase",
+                color="Metrik",
+                markers=True,
+                text=trend_melted["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+                title="📅 Tren Perubahan Persentase Metrik Suplementasi Zat Gizi Mikro"
+            )
+            fig_change.update_traces(textposition="top center")
+            fig_change.update_layout(
+                xaxis_title="Bulan",
+                yaxis_title="Perubahan Persentase (%)",
+                xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+                legend_title="Metrik",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig_change, use_container_width=True)
+        else:
+            st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+    else:
+        st.warning("⚠️ Kolom 'Bulan' tidak tersedia di data. Analisis perubahan persentase tidak dapat dilakukan.")
+
+    # 7. 📉 Analisis Distribusi Data (Histogram)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        metric_list,
+        key="dist_metric_select_micro"
+    )
+
+    dist_df = current_df.groupby(group_cols)[selected_metric_dist].mean().reset_index()
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=20,
+            title=f"📉 Distribusi {selected_metric_dist} di Seluruh Wilayah",
+            labels={"value": "Persentase (%)", "count": "Jumlah Wilayah"},
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Jumlah Wilayah",
+            bargap=0.1
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+        # Tambahan statistik dasar
+        mean_val = dist_df[selected_metric_dist].mean().round(2)
+        median_val = dist_df[selected_metric_dist].median().round(2)
+        st.markdown(f"**Statistik Distribusi:** Rata-rata = {mean_val}%, Median = {median_val}%")
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
 
     return metrics, current_df, fig, comparison_fig
 # ----------------------------- #
@@ -1747,7 +3981,7 @@ def show_dashboard():
             tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
         
         with col2:
-            jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Laporan Bulanan", "Laporan Tahunan"])
+            jenis_laporan = st.selectbox("📋 Pilih Jenis Laporan", ["Laporan Bulanan", "Laporan Tahunan"], help="Pilih jenis laporan: Bulanan atau Tahunan.")
 
         # Inisialisasi variabel untuk filter bulan/tribulan
         bulan_filter = "All"
