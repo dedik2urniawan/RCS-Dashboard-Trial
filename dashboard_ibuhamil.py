@@ -10,6 +10,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from io import BytesIO
+import numpy as np
+from scipy import stats
 
 # ----------------------------- #
 # 📥 Fungsi untuk Load Data
@@ -137,7 +139,7 @@ def compliance_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelura
     st.subheader("📊 Visualisasi Compliance Rate per Puskesmas")
     compliance_df["Compliance Rate (%)"] = compliance_df["Compliance Rate (%)"].str.rstrip('%').astype(float)
     fig = px.bar(compliance_df, x="Puskesmas", y="Compliance Rate (%)",
-                 text="Compliance Rate (%)", title="📊 Compliance Rate per Puskesmas", color_discrete_sequence=["#00C49F"])
+                 text="Compliance Rate (%)", title="📊 Compliance Rate per Puskesmas Indikator Ibu Hamil", color_discrete_sequence=["#00C49F"])
     fig.update_traces(textposition='outside')
     fig.update_layout(xaxis_tickangle=-45, yaxis_title="Compliance Rate (%)", xaxis_title="Puskesmas", yaxis_range=[0, 110], title_x=0.5, height=500)
     st.plotly_chart(fig, key=f"compliance_chart_{bulan_filter}_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", use_container_width=True)
@@ -159,7 +161,7 @@ def compliance_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelura
 # ----------------------------- #
 # 📋 Completeness Rate
 # ----------------------------- #
-def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelurahan_filter):
+def completeness_rate(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter):
     """Menghitung dan menampilkan tingkat kelengkapan data untuk data ibu hamil."""
     st.header("📋 Completeness Rate")
     # Tambahkan info dengan tone akademik, rendering rumus, penjelasan untuk orang awam, dan background biru muda
@@ -222,8 +224,24 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
 
     # Tentukan scope berdasarkan filter
     scope = filtered_df.copy()
-    if bulan_filter != "All":
-        scope = scope[scope['Bulan'] == int(bulan_filter)] if 'Bulan' in scope.columns and scope['Bulan'].dtype in [int, float, str] else scope
+    if periode_filter != "All":
+        if 'Bulan' in scope.columns:
+            if isinstance(periode_filter, str) and periode_filter.startswith("Triwulan"):
+                triwulan_map = {
+                    "Triwulan 1": [1, 2, 3],
+                    "Triwulan 2": [4, 5, 6],
+                    "Triwulan 3": [7, 8, 9],
+                    "Triwulan 4": [10, 11, 12]
+                }
+                bulan_triwulan = triwulan_map.get(periode_filter, [])
+                if bulan_triwulan:
+                    scope = scope[scope['Bulan'].isin(bulan_triwulan)]
+            else:
+                try:
+                    bulan_filter_int = int(periode_filter)
+                    scope = scope[scope['Bulan'] == bulan_filter_int]
+                except ValueError:
+                    st.warning("⚠️ Pilihan periode tidak valid. Menampilkan semua data.")
     if puskesmas_filter != "All":
         scope = scope[scope['Puskesmas'] == puskesmas_filter]
     if kelurahan_filter != "All":
@@ -241,8 +259,23 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
     completeness_data = []
     for puskesmas in sorted(desa_df['Puskesmas'].unique()):
         df_pkm = filtered_df[filtered_df['Puskesmas'] == puskesmas]
-        if bulan_filter != "All" and 'Bulan' in df_pkm.columns and df_pkm['Bulan'].dtype in [int, float, str]:
-            df_pkm = df_pkm[df_pkm['Bulan'] == int(bulan_filter)]
+        if periode_filter != "All" and 'Bulan' in df_pkm.columns:
+            if isinstance(periode_filter, str) and periode_filter.startswith("Triwulan"):
+                triwulan_map = {
+                    "Triwulan 1": [1, 2, 3],
+                    "Triwulan 2": [4, 5, 6],
+                    "Triwulan 3": [7, 8, 9],
+                    "Triwulan 4": [10, 11, 12]
+                }
+                bulan_triwulan = triwulan_map.get(periode_filter, [])
+                if bulan_triwulan:
+                    df_pkm = df_pkm[df_pkm['Bulan'].isin(bulan_triwulan)]
+            else:
+                try:
+                    bulan_filter_int = int(periode_filter)
+                    df_pkm = df_pkm[df_pkm['Bulan'] == bulan_filter_int]
+                except ValueError:
+                    st.warning("⚠️ Pilihan periode tidak valid untuk puskesmas ini.")
         total_entries_pkm = df_pkm.shape[0]
         lengkap_entries_pkm = df_pkm['Lengkap'].sum()
         rate = (lengkap_entries_pkm / total_entries_pkm * 100) if total_entries_pkm else 0
@@ -268,7 +301,7 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
     fig_completeness.update_layout(xaxis_tickangle=-45, yaxis_title="Completeness Rate (%)", 
                                   xaxis_title="Puskesmas", yaxis_range=[0, 110], 
                                   title_x=0.5, height=500)
-    st.plotly_chart(fig_completeness, key=f"completeness_chart_{bulan_filter}_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", 
+    st.plotly_chart(fig_completeness, key=f"completeness_chart_{periode_filter}_{puskesmas_filter}_{kelurahan_filter}_{time.time()}", 
                     use_container_width=True)
 
     # Detail kelengkapan per kolom (opsional)
@@ -283,10 +316,10 @@ def completeness_rate(filtered_df, desa_df, bulan_filter, puskesmas_filter, kelu
 # 🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia
 # ----------------------------- #
 def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan"):
-    """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil Anemia dengan fitur download laporan."""
+    """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil Anemia dengan fitur tambahan."""
     st.header("🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia")
 
-    # Informasi definisi operasional (tetap sama, disingkat untuk fokus pada logika)
+    # Informasi definisi operasional (tidak diubah)
     with st.expander("📜 Definisi Operasional dan Insight Analisis", expanded=False):
         st.markdown("""
             ### 📜 Definisi Operasional dan Analisis Indikator
@@ -351,7 +384,6 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
             </div>
         """, unsafe_allow_html=True)
 
-
     # Daftar kolom yang dibutuhkan
     required_columns = [
         'Jumlah_ibu_hamil_periksa_Hb',
@@ -396,14 +428,8 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
     if kelurahan_filter != "All":
         scope = scope[scope['Kelurahan'] == kelurahan_filter]
 
-    # Agregasi data berdasarkan periode
-    group_cols = ['Puskesmas']
-    if puskesmas_filter != "All":
-        group_cols.append('Kelurahan')
-    if periode_type == "Triwulan" and periode_filter != "All":
-        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
-    elif periode_type == "Bulan" and periode_filter != "All":
-        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
+    # Pastikan kolom Bulan adalah integer untuk analisis tren
+    scope['Bulan'] = scope['Bulan'].astype(int)
 
     # Hitung total ibu hamil yang diperiksa Hb
     total_ibu_hamil = scope['Jumlah_ibu_hamil_periksa_Hb'].sum()
@@ -411,7 +437,15 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         st.warning("⚠️ Tidak ada data ibu hamil yang diperiksa Hb untuk filter ini.")
         return
 
-    # Hitung total untuk metrik baru
+    # Hitung metrik per baris di scope
+    scope['Metrik Prevalensi Ibu Hamil Anemia Ringan (%)'] = (scope['Anemia_ringan'] / scope['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Prevalensi Ibu Hamil Anemia Sedang (%)'] = (scope['Anemia_sedang'] / scope['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Prevalensi Ibu Hamil Anemia Berat (%)'] = (scope['Anemia_berat'] / scope['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Prevalensi Ibu Hamil Anemia (%)'] = (scope['Jumlah_ibu_hamil_anemia'] / scope['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)'] = (scope['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / scope['Anemia_ringan'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)'] = (scope['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (scope['Anemia_sedang'] + scope['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+
+    # Hitung total untuk metrik (untuk score card)
     total_anemia_ringan = scope['Anemia_ringan'].sum()
     total_anemia_sedang = scope['Anemia_sedang'].sum()
     total_anemia_berat = scope['Anemia_berat'].sum()
@@ -420,17 +454,17 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
     total_tata_laksana = scope['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'].sum()
     total_anemia_sedang_berat = total_anemia_sedang + total_anemia_berat
 
-    # Hitung metrik dengan formula baru
+    # Hitung metrik dengan formula untuk score card
     metrik_data = {
         "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (total_anemia_ringan / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
         "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (total_anemia_sedang / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
         "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (total_anemia_berat / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
         "Metrik Prevalensi Ibu Hamil Anemia (%)": (total_ibu_hamil_anemia / total_ibu_hamil * 100) if total_ibu_hamil > 0 else 0,
-        "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (total_anemia_ringan / total_ttd_oral * 100) if total_ttd_oral > 0 else 0,
+        "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (total_ttd_oral / total_anemia_ringan * 100) if total_anemia_ringan > 0 else 0,
         "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (total_tata_laksana / total_anemia_sedang_berat * 100) if total_anemia_sedang_berat > 0 else 0
     }
 
-    # Target (tetap sama)
+    # Target
     targets = {
         "Metrik Prevalensi Ibu Hamil Anemia (%)": 26,
         "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": 40,
@@ -479,10 +513,10 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0)
+            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
                       title="Prevalensi Anemia Ibu Hamil per Puskesmas", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
@@ -490,10 +524,10 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0),
-            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0)
+            "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": (grouped_df['Anemia_sedang'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": (grouped_df['Anemia_berat'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Prevalensi Ibu Hamil Anemia (%)": (grouped_df['Jumlah_ibu_hamil_anemia'] / grouped_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig1 = px.bar(graph_data, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
                       title=f"Prevalensi Anemia Ibu Hamil per Kelurahan di {puskesmas_filter}", text=graph_data["Persentase"].apply(lambda x: f"{x:.1f}%"))
@@ -511,7 +545,7 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         grouped_df = scope.groupby('Puskesmas').sum(numeric_only=True).reset_index()
         graph_data2 = pd.DataFrame({
             "Puskesmas": grouped_df['Puskesmas'],
-            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / grouped_df['Anemia_ringan'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
             "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (grouped_df['Anemia_sedang'] + grouped_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Puskesmas"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Puskesmas", y="Persentase", color="Indikator", barmode="group",
@@ -520,7 +554,7 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         grouped_df = scope.groupby('Kelurahan').sum(numeric_only=True).reset_index()
         graph_data2 = pd.DataFrame({
             "Kelurahan": grouped_df['Kelurahan'],
-            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Anemia_ringan'] / grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
+            "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": (grouped_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / grouped_df['Anemia_ringan'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0),
             "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": (grouped_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (grouped_df['Anemia_sedang'] + grouped_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
         }).melt(id_vars=["Kelurahan"], var_name="Indikator", value_name="Persentase")
         fig2 = px.bar(graph_data2, x="Kelurahan", y="Persentase", color="Indikator", barmode="group",
@@ -533,21 +567,509 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
                        height=500)
     st.plotly_chart(fig2, use_container_width=True)
 
-    # 3. Tabel Rekapitulasi
+    # 3. Tabel Rekapitulasi dengan Highlight Outlier (Poin 1)
     st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil Anemia")
     recap_df = scope.copy()
-    recap_df['Metrik Prevalensi Ibu Hamil Anemia Ringan (%)'] = (recap_df['Anemia_ringan'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Prevalensi Ibu Hamil Anemia Sedang (%)'] = (recap_df['Anemia_sedang'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Prevalensi Ibu Hamil Anemia Berat (%)'] = (recap_df['Anemia_berat'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Prevalensi Ibu Hamil Anemia (%)'] = (recap_df['Jumlah_ibu_hamil_anemia'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).fillna(0).round(2)
-    recap_df['Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)'] = (recap_df['Anemia_ringan'] / recap_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    if puskesmas_filter == "All":
+        recap_df = recap_df.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+    else:
+        recap_df = recap_df.groupby(['Puskesmas', 'Kelurahan']).sum(numeric_only=True).reset_index()
+
+    # Hitung metrik untuk tabel
+    recap_df['Metrik Prevalensi Ibu Hamil Anemia Ringan (%)'] = (recap_df['Anemia_ringan'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Prevalensi Ibu Hamil Anemia Sedang (%)'] = (recap_df['Anemia_sedang'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Prevalensi Ibu Hamil Anemia Berat (%)'] = (recap_df['Anemia_berat'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Prevalensi Ibu Hamil Anemia (%)'] = (recap_df['Jumlah_ibu_hamil_anemia'] / recap_df['Jumlah_ibu_hamil_periksa_Hb'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
+    recap_df['Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)'] = (recap_df['Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral'] / recap_df['Anemia_ringan'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
     recap_df['Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)'] = (recap_df['Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan'] / (recap_df['Anemia_sedang'] + recap_df['Anemia_berat']) * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
 
     recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
     recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
-    st.dataframe(recap_display, use_container_width=True)
 
-    # 4. Fitur Download Laporan PDF (tetap sama)
+    # Definisikan fungsi highlight untuk outlier > 100%
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        # Gunakan target 100% untuk deteksi outlier logis, kecuali untuk metrik dengan target spesifik
+        outlier_targets = {
+            'Metrik Prevalensi Ibu Hamil Anemia Ringan (%)': 100,
+            'Metrik Prevalensi Ibu Hamil Anemia Sedang (%)': 100,
+            'Metrik Prevalensi Ibu Hamil Anemia Berat (%)': 100,
+            'Metrik Prevalensi Ibu Hamil Anemia (%)': 100,  # Akan diatur ulang sesuai target spesifik
+            'Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)': 100,
+            'Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)': 100
+        }
+        for col in outlier_targets:
+            if col in row.index and pd.notna(row[col]):
+                # Gunakan target spesifik jika ada
+                if col == 'Metrik Prevalensi Ibu Hamil Anemia (%)' and row[col] > 26:
+                    idx = row.index.get_loc(col)
+                    styles[idx] = 'background-color: #FF6666; color: white;'
+                elif col in ['Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)', 'Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)'] and row[col] > 40:
+                    idx = row.index.get_loc(col)
+                    styles[idx] = 'background-color: #FF6666; color: white;'
+                elif col in row.index and row[col] > outlier_targets[col]:
+                    idx = row.index.get_loc(col)
+                    styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan data numerik dan bulatkan ke 2 digit desimal
+    cols_to_check = list(metrik_data.keys())
+    for col in cols_to_check:
+        if col in recap_display.columns:
+            recap_display[col] = pd.to_numeric(recap_display[col], errors='coerce').round(2)
+
+    # Terapkan styling dan formatting
+    styled_df = recap_display.style.apply(highlight_outliers, axis=1).format({
+        col: "{:.2f}%" for col in metrik_data.keys()
+    }, na_rep="N/A", precision=2)
+
+    # Render tabel dengan styling yang eksplisit
+    st.write(styled_df, unsafe_allow_html=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai yang melebihi target (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Nilai <code>inf%</code> (infinity percent) terjadi ketika denominator bernilai 0, dan telah diganti menjadi 0% untuk kejelasan. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 3.1 🚨 Tabel Deteksi Outlier (Poin 1.1)
+    st.subheader("🚨 Tabel Deteksi Outlier")
+    # Mapping metrik ke kolom numerator dan denominator
+    metric_to_columns = {
+        "Metrik Prevalensi Ibu Hamil Anemia Ringan (%)": ("Anemia_ringan", "Jumlah_ibu_hamil_periksa_Hb"),
+        "Metrik Prevalensi Ibu Hamil Anemia Sedang (%)": ("Anemia_sedang", "Jumlah_ibu_hamil_periksa_Hb"),
+        "Metrik Prevalensi Ibu Hamil Anemia Berat (%)": ("Anemia_berat", "Jumlah_ibu_hamil_periksa_Hb"),
+        "Metrik Prevalensi Ibu Hamil Anemia (%)": ("Jumlah_ibu_hamil_anemia", "Jumlah_ibu_hamil_periksa_Hb"),
+        "Metrik Ibu Hamil Anemia Ringan yang Mendapat TTD Oral (%)": ("Jumlah_ibu_hamil_anemia_yang_mendapat_TTD_oral", "Anemia_ringan"),
+        "Metrik Ibu Hamil Anemia Sedang dan Berat yang Mendapatkan Tata Laksana di Tingkat Lanjutan (%)": ("Jumlah_ibu_hamil_anemia_sedang_dan_berat_yang_mendapatkan_tata_laksana_di_tingkat_lanjutan", None)  # Denominator dihitung manual
+    }
+
+    # Inisialisasi DataFrame untuk outlier logis
+    outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+    # Deteksi outlier logis untuk setiap metrik
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        if denominator_col is None:
+            # Untuk metrik tata laksana, hitung denominator secara manual
+            temp_df = scope.copy()
+            temp_df["Denominator"] = temp_df["Anemia_sedang"] + temp_df["Anemia_berat"]
+            denominator_col = "Denominator"
+            temp_df[numerator_col] = temp_df[numerator_col]
+        else:
+            temp_df = scope.copy()
+            temp_df[denominator_col] = temp_df[denominator_col]
+
+        # Kasus 1: Numerator > Denominator
+        outlier_data_num = temp_df[
+            (temp_df[numerator_col] > temp_df[denominator_col]) &
+            (temp_df[denominator_col] != 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_num.empty:
+            outlier_data_num["Metrik"] = metric
+            outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+            outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+            outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+            outlier_data_num["Alasan"] = "Numerator > Denominator"
+            outliers_df = pd.concat(
+                [outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]],
+                ignore_index=True
+            )
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = temp_df[
+            (temp_df[denominator_col] == 0) &
+            (temp_df[numerator_col] > 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_zero.empty:
+            outlier_data_zero["Metrik"] = metric
+            outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+            outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+            outlier_data_zero["Rasio"] = "Infinity"
+            outlier_data_zero["Alasan"] = "Denominator = 0"
+            outliers_df = pd.concat(
+                [outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]],
+                ignore_index=True
+            )
+
+    # Tampilkan Tabel Outlier Logis
+    if not outliers_df.empty:
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: f"{x:.2f}%" if isinstance(x, (int, float)) else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+    # 3.2 ⚙️ Analisis Outlier Statistik (Poin 2)
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    cols_to_check = list(metrik_data.keys())
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key=f"outlier_method_select_ibu_hamil_anemia_{periode_filter}"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in recap_df.columns:
+                continue
+
+            if puskesmas_filter == "All":
+                metric_data = recap_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = recap_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, z_outliers_subset],
+                        ignore_index=True
+                    )
+
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, iqr_outliers_subset],
+                        ignore_index=True
+                    )
+
+    if not statistical_outliers_df.empty:
+        st.markdown("### 📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+    
+    # 3.8 📊 Visualisasi Outlier
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox(
+        "Tampilkan Visualisasi Outlier",
+        value=False,
+        key=f"ibu_hamil_anemia_viz_toggle_{periode_filter}"
+    )
+
+    if show_outlier_viz:
+        # Gabungkan outlier logis dan statistik
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        # Ganti "Infinity" dengan nilai besar untuk visualisasi
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key=f"outlier_viz_select_ibu_hamil_anemia_{periode_filter}"
+            )
+
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Metrik",
+                    y="Rasio",
+                    color="Metode",
+                    title="Boxplot Distribusi Outlier per Metrik dan Metode Deteksi",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Rasio (%)",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+
+    # 3.3 📈 Analisis Tren Metrik (Poin 3)
+    st.subheader("📈 Tren Metrik Ibu Hamil Anemia")
+    # Filter dan agregasi data berdasarkan Bulan
+    trend_df = scope.groupby("Bulan")[list(metrik_data.keys())].mean().reset_index()
+    trend_df = trend_df.melt(
+        id_vars="Bulan",
+        value_vars=list(metrik_data.keys()),
+        var_name="Metrik",
+        value_name="Persentase"
+    )
+
+    # Bulatkan kolom Persentase menjadi 2 digit desimal
+    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+
+    # Tampilkan line chart untuk semua metrik
+    if not trend_df.empty:
+        fig_trend = px.line(
+            trend_df,
+            x="Bulan",
+            y="Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Persentase"].apply(lambda x: f"{x:.2f}"),
+            title="📈 Tren Metrik Ibu Hamil Anemia dari Awal hingga Akhir Bulan"
+        )
+        fig_trend.update_traces(textposition="top center")
+        fig_trend.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            yaxis_range=[0, 100],
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(
+            fig_trend,
+            key=f"ibu_hamil_anemia_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{periode_filter}",
+            use_container_width=True
+        )
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren Ibu Hamil Anemia.")
+
+    # 3.4 📊 Analisis Komparasi Antar Wilayah (Poin 4)
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        list(metrik_data.keys()),
+        key="comp_metric_select_ibu_hamil_anemia"
+    )
+
+    comp_df = scope.groupby(["Puskesmas", "Kelurahan"])[selected_metric].mean().reset_index()
+    comp_df[selected_metric] = comp_df[selected_metric].round(2)  # Bulatkan ke 2 desimal
+    if not comp_df.empty:
+        fig_comp = px.bar(
+            comp_df,
+            x="Puskesmas",
+            y=selected_metric,
+            color="Kelurahan",
+            title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+            text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+            height=400
+        )
+        fig_comp.update_traces(textposition="outside")
+        fig_comp.update_layout(
+            xaxis_title="Puskesmas",
+            yaxis_title="Persentase (%)",
+            xaxis_tickangle=45,
+            yaxis_range=[0, 100],
+            legend_title="Kelurahan"
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+        # 3.5 🔍 Analisis Korelasi Antar Metrik (Poin 5)
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = scope.groupby(["Puskesmas", "Kelurahan"])[list(metrik_data.keys())].mean().reset_index()
+    for col in list(metrik_data.keys()):
+        corr_df[col] = corr_df[col].round(2)  # Bulatkan ke 2 desimal
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[list(metrik_data.keys())].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik Ibu Hamil Anemia",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+        # 3.6 📅 Analisis Perubahan Persentase (Growth/Decline) (Poin 6)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if not trend_df.empty:
+        trend_df = trend_df.sort_values("Bulan")
+        trend_df["Perubahan Persentase"] = trend_df.groupby("Metrik")["Persentase"].pct_change() * 100
+        trend_df["Perubahan Persentase"] = trend_df["Perubahan Persentase"].round(2)
+
+        # Format tabel dengan lebih baik
+        styled_trend_df = trend_df[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+            "Persentase": "{:.2f}%",
+            "Perubahan Persentase": lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+        }).set_properties(**{
+            'text-align': 'center',
+            'font-size': '14px',
+            'border': '1px solid black'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan")
+
+        st.dataframe(styled_trend_df, use_container_width=True)
+
+        fig_change = px.line(
+            trend_df,
+            x="Bulan",
+            y="Perubahan Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+            title="📅 Tren Perubahan Persentase Metrik Ibu Hamil Anemia"
+        )
+        fig_change.update_traces(textposition="top center")
+        fig_change.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Perubahan Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_change, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+
+        # 3.7 📉 Analisis Distribusi Data (Histogram) (Poin 7)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        list(metrik_data.keys()),
+        key="dist_metric_select_ibu_hamil_anemia"
+    )
+
+    dist_df = scope.groupby(["Puskesmas", "Kelurahan"])[selected_metric_dist].mean().reset_index()
+    dist_df[selected_metric_dist] = dist_df[selected_metric_dist].round(2)  # Bulatkan ke 2 desimal
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=20,
+            title=f"📉 Distribusi {selected_metric_dist} di Seluruh Wilayah",
+            labels={"value": "Persentase (%)", "count": "Jumlah Wilayah"},
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Jumlah Wilayah",
+            bargap=0.1
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+        mean_val = dist_df[selected_metric_dist].mean().round(2)
+        median_val = dist_df[selected_metric_dist].median().round(2)
+        st.markdown(f"**Statistik Distribusi:** Rata-rata = {mean_val}%, Median = {median_val}%")
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
+
+    # 4. Fitur Download Laporan PDF
     st.subheader("📥 Unduh Laporan")
     def generate_pdf_report():
         img_buffer1 = BytesIO()
@@ -627,7 +1149,7 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key="button_download_anemia"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report()
         st.success("Laporan PDF siap diunduh!")
@@ -635,14 +1157,14 @@ def cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puske
             label="Download Laporan PDF",
             data=pdf_data,
             file_name=f"Laporan_Cakupan_Anemia_Ibu_Hamil_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
+            key="download_button_pdf_anemia"
         )
-
 # ----------------------------- #
 # 📈 Cakupan Suplementasi Gizi Ibu Hamil (Perbaikan)
 # ----------------------------- #
 def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan"):
-    """Menampilkan analisis Cakupan Suplementasi Gizi Ibu Hamil dengan fitur download laporan."""
+    """Menampilkan analisis Cakupan Suplementasi Gizi Ibu Hamil dengan fitur tambahan dan download laporan."""
     st.header("💊 Cakupan Suplementasi Gizi Ibu Hamil")
 
     # Tambahkan informasi definisi operasional dan insight analisis
@@ -748,22 +1270,19 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, pu
     if kelurahan_filter != "All":
         scope = scope[scope['Kelurahan'] == kelurahan_filter]
 
-    # Agregasi data berdasarkan periode
-    group_cols = ['Puskesmas']
-    if puskesmas_filter != "All":
-        group_cols.append('Kelurahan')
-    if periode_type == "Triwulan" and periode_filter != "All":
-        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
-    elif periode_type == "Bulan" and periode_filter != "All":
-        scope = scope.groupby(group_cols).sum(numeric_only=True).reset_index()
-
     # Hitung total sasaran ibu hamil
     total_sasaran = scope['Jumlah_Sasaran_Ibu_Hamil'].sum()
     if total_sasaran == 0:
         st.warning("⚠️ Tidak ada data sasaran ibu hamil untuk filter ini.")
         return
 
-    # Hitung metrik
+    # Hitung metrik per baris di scope
+    scope['Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)'] = (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / scope['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)'] = (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / scope['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)'] = (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / scope['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+    scope['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)'] = (scope['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD'] / scope['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+
+    # Hitung metrik total untuk score card
     metrik_data = {
         "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0,
         "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": (scope['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'].sum() / total_sasaran * 100) if total_sasaran > 0 else 0,
@@ -867,9 +1386,15 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, pu
                        height=500)
     st.plotly_chart(fig2, use_container_width=True)
 
-    # 3. Tabel Rekapitulasi
+    # 3. Tabel Rekapitulasi dengan Highlight Outlier
     st.subheader("📋 Tabel Rekapitulasi Cakupan Suplementasi Gizi Ibu Hamil")
     recap_df = scope.copy()
+    if puskesmas_filter == "All":
+        recap_df = recap_df.groupby('Puskesmas').sum(numeric_only=True).reset_index()
+    else:
+        recap_df = recap_df.groupby(['Puskesmas', 'Kelurahan']).sum(numeric_only=True).reset_index()
+
+    # Hitung metrik untuk tabel
     recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
     recap_df['Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)'] = (recap_df['Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
     recap_df['Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)'] = (recap_df['Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS'] / recap_df['Jumlah_Sasaran_Ibu_Hamil'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
@@ -877,7 +1402,470 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, pu
 
     recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
     recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
-    st.dataframe(recap_display, use_container_width=True)
+
+    # Definisikan fungsi highlight untuk outlier > 100%
+    def highlight_outliers(row):
+        styles = [''] * len(row)
+        outlier_targets = {
+            'Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)': 100,
+            'Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)': 100,
+            'Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)': 100,
+            'Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)': 100
+        }
+        for col in outlier_targets:
+            if col in row.index and pd.notna(row[col]):
+                if row[col] > outlier_targets[col]:
+                    idx = row.index.get_loc(col)
+                    styles[idx] = 'background-color: #FF6666; color: white;'
+        return styles
+
+    # Pastikan data numerik dan bulatkan ke 2 digit desimal
+    cols_to_check = list(metrik_data.keys())
+    for col in cols_to_check:
+        if col in recap_display.columns:
+            recap_display[col] = pd.to_numeric(recap_display[col], errors='coerce').round(2)
+
+    # Terapkan styling dan formatting
+    styled_df = recap_display.style.apply(highlight_outliers, axis=1).format({
+        col: "{:.2f}%" for col in metrik_data.keys()
+    }, na_rep="N/A", precision=2)
+
+    # Render tabel dengan styling yang eksplisit
+    st.write(styled_df, unsafe_allow_html=True)
+
+    # Tambahkan notice di bawah tabel
+    st.markdown(
+        """
+        <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+            <strong>Catatan Penting:</strong> Nilai yang melebihi 100% (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Nilai <code>inf%</code> (infinity percent) terjadi ketika denominator bernilai 0, dan telah diganti menjadi 0% untuk kejelasan. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 3.1 🚨 Tabel Deteksi Outlier (Poin 1)
+    st.subheader("🚨 Tabel Deteksi Outlier")
+    # Mapping metrik ke kolom numerator dan denominator
+    metric_to_columns = {
+        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet MMS (%)": ("Jumlah_ibu_hamil_mendapat_minimal_180_tablet_MMS", "Jumlah_Sasaran_Ibu_Hamil"),
+        "Metrik Ibu Hamil Mendapat Minimal 180 Tablet TTD (%)": ("Jumlah_ibu_hamil_mendapat_minimal_180_tablet_TTD", "Jumlah_Sasaran_Ibu_Hamil"),
+        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet MMS (%)": ("Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_MMS", "Jumlah_Sasaran_Ibu_Hamil"),
+        "Metrik Ibu Hamil Mengonsumsi Minimal 180 Tablet TTD (%)": ("Jumlah_ibu_hamil_mengonsumsi_minimal_180_tablet_TTD", "Jumlah_Sasaran_Ibu_Hamil")
+    }
+
+    # Inisialisasi DataFrame untuk outlier logis
+    outliers_df = pd.DataFrame(columns=["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"])
+
+    # Deteksi outlier logis untuk setiap metrik
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        temp_df = scope.copy()
+        temp_df[denominator_col] = temp_df[denominator_col]
+
+        # Kasus 1: Numerator > Denominator
+        outlier_data_num = temp_df[
+            (temp_df[numerator_col] > temp_df[denominator_col]) &
+            (temp_df[denominator_col] != 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_num.empty:
+            outlier_data_num["Metrik"] = metric
+            outlier_data_num["Numerator"] = outlier_data_num[numerator_col]
+            outlier_data_num["Denominator"] = outlier_data_num[denominator_col]
+            outlier_data_num["Rasio"] = (outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2)
+            outlier_data_num["Alasan"] = "Numerator > Denominator"
+            outliers_df = pd.concat(
+                [outliers_df, outlier_data_num[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]],
+                ignore_index=True
+            )
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = temp_df[
+            (temp_df[denominator_col] == 0) &
+            (temp_df[numerator_col] > 0)
+        ][["Puskesmas", "Kelurahan", numerator_col, denominator_col]]
+        if not outlier_data_zero.empty:
+            outlier_data_zero["Metrik"] = metric
+            outlier_data_zero["Numerator"] = outlier_data_zero[numerator_col]
+            outlier_data_zero["Denominator"] = outlier_data_zero[denominator_col]
+            outlier_data_zero["Rasio"] = "Infinity"
+            outlier_data_zero["Alasan"] = "Denominator = 0"
+            outliers_df = pd.concat(
+                [outliers_df, outlier_data_zero[["Puskesmas", "Kelurahan", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]]],
+                ignore_index=True
+            )
+
+    # Tampilkan Tabel Outlier Logis
+    if not outliers_df.empty:
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: f"{x:.2f}%" if isinstance(x, (int, float)) else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+    # 3.2 ⚙️ Analisis Outlier Statistik (Poin 2)
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    cols_to_check = list(metrik_data.keys())
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key=f"outlier_method_select_suplementasi_gizi_{periode_filter}"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in recap_df.columns:
+                continue
+
+            if puskesmas_filter == "All":
+                metric_data = recap_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = recap_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, z_outliers_subset],
+                        ignore_index=True
+                    )
+
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, iqr_outliers_subset],
+                        ignore_index=True
+                    )
+
+    if not statistical_outliers_df.empty:
+        st.markdown("### 📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+    # 3.3 📊 Visualisasi Outlier (Poin 3)
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox(
+        "Tampilkan Visualisasi Outlier",
+        value=False,
+        key=f"suplementasi_gizi_viz_toggle_{periode_filter}"
+    )
+
+    if show_outlier_viz:
+        # Gabungkan outlier logis dan statistik
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        # Ganti "Infinity" dengan nilai besar untuk visualisasi
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key=f"outlier_viz_select_suplementasi_gizi_{periode_filter}"
+            )
+
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Metrik",
+                    y="Rasio",
+                    color="Metode",
+                    title="Boxplot Distribusi Outlier per Metrik dan Metode Deteksi",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Rasio (%)",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+
+    # 3.4 📈 Tren Metrik (Poin 4)
+    st.subheader("📈 Tren Metrik Suplementasi Gizi Ibu Hamil")
+    # Filter dan agregasi data berdasarkan Bulan
+    trend_df = scope.groupby("Bulan")[list(metrik_data.keys())].mean().reset_index()
+    trend_df = trend_df.melt(
+        id_vars="Bulan",
+        value_vars=list(metrik_data.keys()),
+        var_name="Metrik",
+        value_name="Persentase"
+    )
+
+    # Bulatkan kolom Persentase menjadi 2 digit desimal
+    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+
+    # Tampilkan line chart untuk semua metrik
+    if not trend_df.empty:
+        fig_trend = px.line(
+            trend_df,
+            x="Bulan",
+            y="Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Persentase"].apply(lambda x: f"{x:.2f}"),
+            title="📈 Tren Metrik Suplementasi Gizi Ibu Hamil dari Awal hingga Akhir Bulan"
+        )
+        fig_trend.update_traces(textposition="top center")
+        fig_trend.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            yaxis_range=[0, 100],
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(
+            fig_trend,
+            key=f"suplementasi_gizi_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{periode_filter}",
+            use_container_width=True
+        )
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren Suplementasi Gizi Ibu Hamil.")
+
+    # 3.5 📊 Analisis Komparasi Antar Wilayah (Poin 5)
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        list(metrik_data.keys()),
+        key="comp_metric_select_suplementasi_gizi"
+    )
+
+    comp_df = scope.groupby(["Puskesmas", "Kelurahan"])[selected_metric].mean().reset_index()
+    comp_df[selected_metric] = comp_df[selected_metric].round(2)  # Bulatkan ke 2 desimal
+    if not comp_df.empty:
+        fig_comp = px.bar(
+            comp_df,
+            x="Puskesmas",
+            y=selected_metric,
+            color="Kelurahan",
+            title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+            text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+            height=400
+        )
+        fig_comp.update_traces(textposition="outside")
+        fig_comp.update_layout(
+            xaxis_title="Puskesmas",
+            yaxis_title="Persentase (%)",
+            xaxis_tickangle=45,
+            yaxis_range=[0, 100],
+            legend_title="Kelurahan"
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 3.6 🔍 Analisis Korelasi Antar Metrik (Poin 6)
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = scope.groupby(["Puskesmas", "Kelurahan"])[list(metrik_data.keys())].mean().reset_index()
+    for col in list(metrik_data.keys()):
+        corr_df[col] = corr_df[col].round(2)  # Bulatkan ke 2 desimal
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[list(metrik_data.keys())].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik Suplementasi Gizi Ibu Hamil",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 3.7 📅 Analisis Perubahan Persentase (Growth/Decline) (Poin 7)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if not trend_df.empty:
+        trend_df = trend_df.sort_values("Bulan")
+        trend_df["Perubahan Persentase"] = trend_df.groupby("Metrik")["Persentase"].pct_change() * 100
+        trend_df["Perubahan Persentase"] = trend_df["Perubahan Persentase"].round(2)
+
+        # Format tabel dengan lebih baik
+        styled_trend_df = trend_df[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+            "Persentase": "{:.2f}%",
+            "Perubahan Persentase": lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+        }).set_properties(**{
+            'text-align': 'center',
+            'font-size': '14px',
+            'border': '1px solid black'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan")
+
+        st.dataframe(styled_trend_df, use_container_width=True)
+
+        fig_change = px.line(
+            trend_df,
+            x="Bulan",
+            y="Perubahan Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+            title="📅 Tren Perubahan Persentase Metrik Suplementasi Gizi Ibu Hamil"
+        )
+        fig_change.update_traces(textposition="top center")
+        fig_change.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Perubahan Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_change, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+
+    # 3.8 📉 Analisis Distribusi Data (Histogram) (Poin 8)
+    st.subheader("📉 Analisis Distribusi Data (Histogram)")
+    selected_metric_dist = st.selectbox(
+        "Pilih Metrik untuk Analisis Distribusi",
+        list(metrik_data.keys()),
+        key="dist_metric_select_suplementasi_gizi"
+    )
+
+    dist_df = scope.groupby(["Puskesmas", "Kelurahan"])[selected_metric_dist].mean().reset_index()
+    dist_df[selected_metric_dist] = dist_df[selected_metric_dist].round(2)  # Bulatkan ke 2 desimal
+    if not dist_df.empty:
+        fig_dist = px.histogram(
+            dist_df,
+            x=selected_metric_dist,
+            nbins=20,
+            title=f"📉 Distribusi {selected_metric_dist} di Seluruh Wilayah",
+            labels={"value": "Persentase (%)", "count": "Jumlah Wilayah"},
+            height=400
+        )
+        fig_dist.update_layout(
+            xaxis_title="Persentase (%)",
+            yaxis_title="Jumlah Wilayah",
+            bargap=0.1
+        )
+        st.plotly_chart(fig_dist, use_container_width=True)
+        mean_val = dist_df[selected_metric_dist].mean().round(2)
+        median_val = dist_df[selected_metric_dist].median().round(2)
+        st.markdown(f"**Statistik Distribusi:** Rata-rata = {mean_val}%, Median = {median_val}%")
+    else:
+        st.warning("⚠️ Tidak ada data untuk analisis distribusi.")
 
     # 4. Fitur Download Laporan PDF
     st.subheader("📥 Unduh Laporan")
@@ -991,10 +1979,10 @@ def cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, pu
 # 📉 Cakupan Layanan Kesehatan Ibu Hamil KEK (Perbaikan Filter Triwulan)
 # ----------------------------- #
 def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type="Bulan", laporan_type="Bulanan"):
-    """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil KEK dengan fitur download laporan."""
+    """Menampilkan analisis Cakupan Layanan Kesehatan Ibu Hamil KEK dengan fitur tambahan dan download laporan."""
     st.header("📉 Cakupan Layanan Kesehatan Ibu Hamil KEK")
 
-    # Tambahkan informasi definisi operasional dan insight analisis (tetap sama)
+    # Tambahkan informasi definisi operasional dan insight analisis
     with st.expander("📜 Definisi Operasional dan Insight Analisis Cakupan Layanan Kesehatan Ibu Hamil KEK", expanded=False):
         st.markdown("""
             <div style="background-color: #E6F0FA; padding: 20px; border-radius: 10px;">
@@ -1112,7 +2100,12 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
                 st.warning(f"⚠️ Tidak ada data ibu hamil yang diukur LILA/IMT atau berisiko KEK untuk {triwulan}.")
                 continue
 
-            # Hitung metrik
+            # Hitung metrik per baris
+            triwulan_scope['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'] / triwulan_scope['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            triwulan_scope['Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)'] = (triwulan_scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+            triwulan_scope['Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)'] = (triwulan_scope['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+
+            # Hitung metrik total untuk score card
             metrik_data = {
                 "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (triwulan_scope['Jumlah_ibu_hamil_risiko_KEK'].sum() / total_diukur * 100) if total_diukur > 0 else 0,
                 "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (triwulan_scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0,
@@ -1226,7 +2219,7 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
             st.plotly_chart(fig2, use_container_width=True)
             all_figs_cakup.append((triwulan, fig2))
 
-            # 3. Tabel Rekapitulasi
+            # 3. Tabel Rekapitulasi dengan Highlight Outlier
             st.subheader(f"📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil KEK - {triwulan}")
             recap_df = triwulan_scope.copy()
             recap_df['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (recap_df['Jumlah_ibu_hamil_risiko_KEK'] / recap_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
@@ -1235,12 +2228,50 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
 
             recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
             recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
-            st.dataframe(recap_display, use_container_width=True)
+
+            # Definisikan fungsi highlight untuk outlier > 100%
+            def highlight_outliers(row):
+                styles = [''] * len(row)
+                outlier_targets = {
+                    'Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)': 100,
+                    'Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)': 100,
+                    'Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)': 100
+                }
+                for col in outlier_targets:
+                    if col in row.index and pd.notna(row[col]):
+                        if row[col] > outlier_targets[col]:
+                            idx = row.index.get_loc(col)
+                            styles[idx] = 'background-color: #FF6666; color: white;'
+                return styles
+
+            # Pastikan data numerik dan bulatkan ke 2 digit desimal
+            cols_to_check = list(metrik_data.keys())
+            for col in cols_to_check:
+                if col in recap_display.columns:
+                    recap_display[col] = pd.to_numeric(recap_display[col], errors='coerce').round(2)
+
+            # Terapkan styling dan formatting
+            styled_df = recap_display.style.apply(highlight_outliers, axis=1).format({
+                col: "{:.2f}%" for col in metrik_data.keys()
+            }, na_rep="N/A", precision=2)
+
+            # Render tabel dengan styling yang eksplisit
+            st.write(styled_df, unsafe_allow_html=True)
+
+            # Tambahkan notice di bawah tabel
+            st.markdown(
+                """
+                <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+                    <strong>Catatan Penting:</strong> Nilai yang melebihi 100% (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Nilai <code>inf%</code> (infinity percent) terjadi ketika denominator bernilai 0, dan telah diganti menjadi 0% untuk kejelasan. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
             all_recap_dfs.append((triwulan, recap_display, metrik_data))
 
     else:
         # Proses untuk laporan Bulanan atau Triwulanan
-        # Filter periode (mengadopsi logika dari cakupan_layanan_anemia_ibu_hamil)
         if periode_type == "Bulan" and periode_filter != "All":
             try:
                 bulan_filter_int = int(periode_filter)
@@ -1273,7 +2304,12 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
             st.warning("⚠️ Tidak ada data ibu hamil yang diukur LILA/IMT atau berisiko KEK untuk filter ini.")
             return
 
-        # Hitung metrik
+        # Hitung metrik per baris
+        scope['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (scope['Jumlah_ibu_hamil_risiko_KEK'] / scope['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+        scope['Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)'] = (scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'] / scope['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+        scope['Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)'] = (scope['Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi'] / scope['Jumlah_ibu_hamil_risiko_KEK'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0)
+
+        # Hitung metrik total untuk score card
         metrik_data = {
             "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": (scope['Jumlah_ibu_hamil_risiko_KEK'].sum() / total_diukur * 100) if total_diukur > 0 else 0,
             "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": (scope['Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi'].sum() / total_risiko_kek * 100) if total_risiko_kek > 0 else 0,
@@ -1387,7 +2423,7 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
         st.plotly_chart(fig2, use_container_width=True)
         all_figs_cakup.append(("Current", fig2))
 
-        # 3. Tabel Rekapitulasi
+        # 3. Tabel Rekapitulasi dengan Highlight Outlier
         st.subheader("📋 Tabel Rekapitulasi Cakupan Layanan Kesehatan Ibu Hamil KEK")
         recap_df = scope.copy()
         recap_df['Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)'] = (recap_df['Jumlah_ibu_hamil_risiko_KEK'] / recap_df['Jumlah_ibu_hamil_diukur_LILA_IMT'] * 100).replace([float('inf'), -float('inf')], 0).fillna(0).round(2)
@@ -1396,9 +2432,449 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
 
         recap_display = recap_df[['Puskesmas', 'Kelurahan'] + list(metrik_data.keys())] if puskesmas_filter != "All" else recap_df[['Puskesmas'] + list(metrik_data.keys())]
         recap_display.insert(0, 'No', range(1, len(recap_display) + 1))
-        st.dataframe(recap_display, use_container_width=True)
+
+        # Definisikan fungsi highlight untuk outlier > 100%
+        def highlight_outliers(row):
+            styles = [''] * len(row)
+            outlier_targets = {
+                'Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)': 100,
+                'Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)': 100,
+                'Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)': 100
+            }
+            for col in outlier_targets:
+                if col in row.index and pd.notna(row[col]):
+                    if row[col] > outlier_targets[col]:
+                        idx = row.index.get_loc(col)
+                        styles[idx] = 'background-color: #FF6666; color: white;'
+            return styles
+
+        # Pastikan data numerik dan bulatkan ke 2 digit desimal
+        cols_to_check = list(metrik_data.keys())
+        for col in cols_to_check:
+            if col in recap_display.columns:
+                recap_display[col] = pd.to_numeric(recap_display[col], errors='coerce').round(2)
+
+        # Terapkan styling dan formatting
+        styled_df = recap_display.style.apply(highlight_outliers, axis=1).format({
+            col: "{:.2f}%" for col in metrik_data.keys()
+        }, na_rep="N/A", precision=2)
+
+        # Render tabel dengan styling yang eksplisit
+        st.write(styled_df, unsafe_allow_html=True)
+
+        # Tambahkan notice di bawah tabel
+        st.markdown(
+            """
+            <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+                <strong>Catatan Penting:</strong> Nilai yang melebihi 100% (indikasi data outlier) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Nilai <code>inf%</code> (infinity percent) terjadi ketika denominator bernilai 0, dan telah diganti menjadi 0% untuk kejelasan. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong>.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         all_recap_dfs.append(("Current", recap_display, metrik_data))
 
+    # 3.1 🚨 Tabel Deteksi Outlier
+    st.subheader("🚨 Tabel Deteksi Outlier")
+    # Mapping metrik ke kolom numerator dan denominator
+    metric_to_columns = {
+        "Metrik Prevalensi Ibu Hamil Risiko KEK/KEK (%)": ("Jumlah_ibu_hamil_risiko_KEK", "Jumlah_ibu_hamil_diukur_LILA_IMT"),
+        "Metrik Ibu Hamil KEK Mendapat Tambahan Asupan Gizi (%)": ("Jumlah_ibu_hamil_KEK_mendapat_tambahan_asupan_gizi", "Jumlah_ibu_hamil_risiko_KEK"),
+        "Metrik Ibu Hamil KEK Mengonsumsi Tambahan Asupan Gizi (%)": ("Jumlah_ibu_hamil_KEK_mengonsumsi_tambahan_asupan_gizi", "Jumlah_ibu_hamil_risiko_KEK")
+    }
+
+    # Inisialisasi DataFrame untuk outlier logis
+    outlier_columns = ["Puskesmas", "Metrik", "Numerator", "Denominator", "Rasio", "Alasan"]
+    if puskesmas_filter != "All" and 'Kelurahan' in scope.columns:
+        outlier_columns.insert(1, "Kelurahan")
+    outliers_df = pd.DataFrame(columns=outlier_columns)
+
+    # Deteksi outlier logis untuk setiap metrik
+    for metric, (numerator_col, denominator_col) in metric_to_columns.items():
+        temp_df = scope.copy()
+        temp_df = temp_df[[numerator_col, denominator_col, 'Puskesmas'] + (['Kelurahan'] if 'Kelurahan' in temp_df.columns else [])].dropna()
+
+        # Kasus 1: Numerator > Denominator
+        if not temp_df.empty and denominator_col in temp_df.columns and numerator_col in temp_df.columns:
+            outlier_data_num = temp_df[
+                (temp_df[numerator_col] > temp_df[denominator_col]) &
+                (temp_df[denominator_col] != 0)
+            ]
+            if not outlier_data_num.empty:
+                outlier_data_num = outlier_data_num.assign(
+                    Metrik=metric,
+                    Numerator=outlier_data_num[numerator_col],
+                    Denominator=outlier_data_num[denominator_col],
+                    Rasio=(outlier_data_num[numerator_col] / outlier_data_num[denominator_col] * 100).round(2),
+                    Alasan="Numerator > Denominator"
+                )
+                outliers_df = pd.concat(
+                    [outliers_df, outlier_data_num[outlier_columns]],
+                    ignore_index=True
+                )
+
+        # Kasus 2: Denominator = 0
+        outlier_data_zero = temp_df[
+            (temp_df[denominator_col] == 0) &
+            (temp_df[numerator_col] > 0)
+        ]
+        if not outlier_data_zero.empty:
+            outlier_data_zero = outlier_data_zero.assign(
+                Metrik=metric,
+                Numerator=outlier_data_zero[numerator_col],
+                Denominator=outlier_data_zero[denominator_col],
+                Rasio="Infinity",
+                Alasan="Denominator = 0"
+            )
+            outliers_df = pd.concat(
+                [outliers_df, outlier_data_zero[outlier_columns]],
+                ignore_index=True
+            )
+
+    # Tampilkan Tabel Outlier Logis
+    if not outliers_df.empty:
+        styled_outliers = outliers_df.style.apply(
+            lambda x: ['background-color: #FF6666; color: white;' if x['Alasan'] == "Numerator > Denominator" else 'background-color: #FF4500; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Numerator": "{:.0f}",
+            "Denominator": "{:.0f}",
+            "Rasio": lambda x: f"{x:.2f}%" if isinstance(x, (int, float)) else x
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("Tabel Outlier: Data dengan Numerator > Denominator atau Denominator = 0")
+
+        st.write(styled_outliers, unsafe_allow_html=True)
+    else:
+        st.success("✅ Tidak ada outlier terdeteksi berdasarkan kriteria Numerator > Denominator atau Denominator = 0.")
+
+    # 3.2 ⚙️ Analisis Outlier Statistik
+    st.subheader("⚙️ Analisis Outlier Statistik")
+    cols_to_check = list(metrik_data.keys())
+    base_columns = ["Puskesmas", "Metrik", "Nilai", "Metode"]
+    if puskesmas_filter != "All":
+        base_columns.insert(1, "Kelurahan")
+    statistical_outliers_df = pd.DataFrame(columns=base_columns)
+
+    outlier_method = st.selectbox(
+        "Pilih Metode Deteksi Outlier Statistik",
+        ["Tidak Ada", "Z-Score", "IQR"],
+        key=f"outlier_method_select_kek_{periode_filter}"
+    )
+
+    if outlier_method != "Tidak Ada":
+        for metric in cols_to_check:
+            if metric not in recap_df.columns:
+                continue
+
+            if puskesmas_filter == "All":
+                metric_data = recap_df[[metric, "Puskesmas"]].dropna()
+            else:
+                metric_data = recap_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+
+            if metric_data.empty:
+                continue
+
+            if outlier_method == "Z-Score":
+                z_scores = stats.zscore(metric_data[metric], nan_policy='omit')
+                z_outlier_mask = abs(z_scores) > 3
+                z_outliers = metric_data[z_outlier_mask].copy()
+                if not z_outliers.empty:
+                    z_outliers["Metrik"] = metric
+                    z_outliers["Nilai"] = z_outliers[metric]
+                    z_outliers["Metode"] = "Z-Score"
+                    if puskesmas_filter == "All":
+                        z_outliers_subset = z_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        z_outliers_subset = z_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, z_outliers_subset],
+                        ignore_index=True
+                    )
+
+            elif outlier_method == "IQR":
+                Q1 = metric_data[metric].quantile(0.25)
+                Q3 = metric_data[metric].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                iqr_outlier_mask = (metric_data[metric] < lower_bound) | (metric_data[metric] > upper_bound)
+                iqr_outliers = metric_data[iqr_outlier_mask].copy()
+                if not iqr_outliers.empty:
+                    iqr_outliers["Metrik"] = metric
+                    iqr_outliers["Nilai"] = iqr_outliers[metric]
+                    iqr_outliers["Metode"] = "IQR"
+                    if puskesmas_filter == "All":
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Metrik", "Nilai", "Metode"]]
+                    else:
+                        iqr_outliers_subset = iqr_outliers[["Puskesmas", "Kelurahan", "Metrik", "Nilai", "Metode"]]
+                    statistical_outliers_df = pd.concat(
+                        [statistical_outliers_df, iqr_outliers_subset],
+                        ignore_index=True
+                    )
+
+    if not statistical_outliers_df.empty:
+        st.markdown("### 📊 Tabel Outlier Statistik")
+        styled_stat_outliers = statistical_outliers_df.style.apply(
+            lambda x: ['background-color: #FFA500; color: white;' if x['Metode'] == "Z-Score" else 'background-color: #FF8C00; color: white;'] * len(x),
+            axis=1
+        ).format({
+            "Nilai": "{:.2f}%"
+        }).set_properties(**{
+            'border': '1px solid black',
+            'text-align': 'center',
+            'font-size': '14px',
+            'font-family': 'Arial, sans-serif'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#FF9800'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption(f"Tabel Outlier Statistik ({outlier_method})")
+
+        st.write(styled_stat_outliers, unsafe_allow_html=True)
+    else:
+        if outlier_method != "Tidak Ada":
+            st.info(f"ℹ️ Tidak ada outlier statistik terdeteksi menggunakan metode {outlier_method}.")
+
+    # 3.3 Visualisasi Outlier
+    st.subheader("📊 Visualisasi Outlier")
+    show_outlier_viz = st.checkbox(
+        "Tampilkan Visualisasi Outlier",
+        value=False,
+        key=f"kek_viz_toggle_{periode_filter}"
+    )
+
+    if show_outlier_viz:
+        # Gabungkan outlier logis dan statistik
+        combined_outliers = outliers_df[["Puskesmas", "Kelurahan", "Metrik", "Rasio"]].copy()
+        combined_outliers["Metode"] = "Logis (Numerator > Denominator atau Denominator = 0)"
+        combined_outliers["Rasio"] = combined_outliers["Rasio"].replace("Infinity", 9999)
+        if not statistical_outliers_df.empty:
+            stat_outliers = statistical_outliers_df[["Puskesmas", "Metrik", "Metode"]].copy()
+            stat_outliers["Rasio"] = statistical_outliers_df["Nilai"]
+            if "Kelurahan" in statistical_outliers_df.columns:
+                stat_outliers["Kelurahan"] = statistical_outliers_df["Kelurahan"]
+            else:
+                stat_outliers["Kelurahan"] = "N/A"
+            combined_outliers = pd.concat([combined_outliers, stat_outliers], ignore_index=True)
+
+        if not combined_outliers.empty:
+            viz_type = st.selectbox(
+                "Pilih Tipe Visualisasi Outlier",
+                ["Heatmap", "Grafik Batang", "Boxplot"],
+                key=f"outlier_viz_select_kek_{periode_filter}"
+            )
+
+            if viz_type == "Heatmap":
+                pivot_df = combined_outliers.pivot_table(
+                    index="Puskesmas",
+                    columns="Metrik",
+                    values="Rasio",
+                    aggfunc="mean",
+                    fill_value=0
+                )
+                fig_heatmap = px.imshow(
+                    pivot_df,
+                    text_auto=True,
+                    aspect="auto",
+                    title="Heatmap Distribusi Outlier per Puskesmas",
+                    color_continuous_scale="Reds"
+                )
+                fig_heatmap.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Puskesmas",
+                    coloraxis_colorbar_title="Rasio (%)"
+                )
+                st.plotly_chart(fig_heatmap, use_container_width=True)
+
+            elif viz_type == "Grafik Batang":
+                count_df = combined_outliers.groupby(["Metrik", "Metode"]).size().reset_index(name="Jumlah")
+                fig_bar = px.bar(
+                    count_df,
+                    x="Metrik",
+                    y="Jumlah",
+                    color="Metode",
+                    barmode="group",
+                    title="Jumlah Outlier per Metrik dan Metode Deteksi",
+                    text="Jumlah"
+                )
+                fig_bar.update_traces(textposition="outside")
+                fig_bar.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Jumlah Outlier",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+            elif viz_type == "Boxplot":
+                fig_box = px.box(
+                    combined_outliers,
+                    x="Metrik",
+                    y="Rasio",
+                    color="Metode",
+                    title="Boxplot Distribusi Outlier per Metrik dan Metode Deteksi",
+                    points="all"
+                )
+                fig_box.update_layout(
+                    xaxis_title="Metrik",
+                    yaxis_title="Rasio (%)",
+                    xaxis_tickangle=45,
+                    legend_title="Metode Deteksi"
+                )
+                st.plotly_chart(fig_box, use_container_width=True)
+        else:
+            st.info("ℹ️ Tidak ada data outlier untuk divisualisasikan.")
+
+    # 3.4 📈 Tren Metrik
+    st.subheader("📈 Tren Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK")
+    trend_df = scope.groupby("Bulan")[list(metrik_data.keys())].mean().reset_index()
+    trend_df = trend_df.melt(
+        id_vars="Bulan",
+        value_vars=list(metrik_data.keys()),
+        var_name="Metrik",
+        value_name="Persentase"
+    )
+    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+
+    if not trend_df.empty:
+        fig_trend = px.line(
+            trend_df,
+            x="Bulan",
+            y="Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Persentase"].apply(lambda x: f"{x:.2f}"),
+            title="📈 Tren Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK dari Awal hingga Akhir Bulan"
+        )
+        fig_trend.update_traces(textposition="top center")
+        fig_trend.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            yaxis_range=[0, 100],
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(
+            fig_trend,
+            key=f"kek_trend_chart_{puskesmas_filter}_{kelurahan_filter}_{periode_filter}",
+            use_container_width=True
+        )
+    else:
+        st.warning("⚠️ Tidak ada data untuk ditampilkan pada grafik tren Cakupan Layanan Kesehatan Ibu Hamil KEK.")
+
+    # 3.5 📊 Analisis Komparasi Antar Wilayah
+    st.subheader("📊 Analisis Komparasi Antar Wilayah")
+    selected_metric = st.selectbox(
+        "Pilih Metrik untuk Komparasi Antar Wilayah",
+        list(metrik_data.keys()),
+        key="comp_metric_select_kek"
+    )
+
+    # Tentukan kolom pengelompokan berdasarkan ketersediaan 'Kelurahan'
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in scope.columns:
+        group_cols.append("Kelurahan")
+
+    # Agregasi data berdasarkan kolom yang tersedia
+    comp_df = scope.groupby(group_cols)[selected_metric].mean().reset_index()
+    comp_df[selected_metric] = comp_df[selected_metric].round(2)
+
+    if not comp_df.empty:
+        fig_comp = px.bar(
+            comp_df,
+            x="Puskesmas",
+            y=selected_metric,
+            color="Kelurahan" if "Kelurahan" in comp_df.columns else None,
+            title=f"📊 Komparasi {selected_metric} Antar Wilayah",
+            text=comp_df[selected_metric].apply(lambda x: f"{x:.2f}%"),
+            height=400
+        )
+        fig_comp.update_traces(textposition="outside")
+        fig_comp.update_layout(
+            xaxis_title="Puskesmas",
+            yaxis_title="Persentase (%)",
+            xaxis_tickangle=45,
+            yaxis_range=[0, 100],
+            legend_title="Kelurahan" if "Kelurahan" in comp_df.columns else None
+        )
+        st.plotly_chart(fig_comp, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk komparasi antar wilayah.")
+
+    # 3.6 🔍 Analisis Korelasi Antar Metrik
+    st.subheader("🔍 Analisis Korelasi Antar Metrik")
+    corr_df = scope.groupby(["Puskesmas", "Kelurahan"])[list(metrik_data.keys())].mean().reset_index()
+    for col in list(metrik_data.keys()):
+        corr_df[col] = corr_df[col].round(2)
+    if len(corr_df) > 1:
+        correlation_matrix = corr_df[list(metrik_data.keys())].corr()
+        fig_corr = px.imshow(
+            correlation_matrix,
+            text_auto=True,
+            aspect="auto",
+            title="🔍 Matriks Korelasi Antar Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK",
+            color_continuous_scale="RdBu",
+            range_color=[-1, 1]
+        )
+        fig_corr.update_layout(
+            xaxis_title="Metrik",
+            yaxis_title="Metrik",
+            coloraxis_colorbar_title="Koefisien Korelasi"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+        st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+    else:
+        st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
+
+    # 3.7 📅 Analisis Perubahan Persentase (Growth/Decline)
+    st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
+    if not trend_df.empty:
+        trend_df = trend_df.sort_values("Bulan")
+        trend_df["Perubahan Persentase"] = trend_df.groupby("Metrik")["Persentase"].pct_change() * 100
+        trend_df["Perubahan Persentase"] = trend_df["Perubahan Persentase"].round(2)
+
+        styled_trend_df = trend_df[["Bulan", "Metrik", "Persentase", "Perubahan Persentase"]].style.format({
+            "Persentase": "{:.2f}%",
+            "Perubahan Persentase": lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+        }).set_properties(**{
+            'text-align': 'center',
+            'font-size': '14px',
+            'border': '1px solid black'
+        }).set_table_styles([
+            {'selector': 'th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]},
+            {'selector': 'caption', 'props': [('caption-side', 'top'), ('font-size', '18px'), ('font-weight', 'bold'), ('color', '#333')]},
+        ]).set_caption("📅 Tabel Perubahan Persentase Antar Bulan")
+
+        st.dataframe(styled_trend_df, use_container_width=True)
+
+        fig_change = px.line(
+            trend_df,
+            x="Bulan",
+            y="Perubahan Persentase",
+            color="Metrik",
+            markers=True,
+            text=trend_df["Perubahan Persentase"].apply(lambda x: f"{x:.2f}%" if pd.notna(x) else ""),
+            title="📅 Tren Perubahan Persentase Metrik Cakupan Layanan Kesehatan Ibu Hamil KEK"
+        )
+        fig_change.update_traces(textposition="top center")
+        fig_change.update_layout(
+            xaxis_title="Bulan",
+            yaxis_title="Perubahan Persentase (%)",
+            xaxis=dict(tickmode='linear', tick0=1, dtick=1),
+            legend_title="Metrik",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig_change, use_container_width=True)
+    else:
+        st.warning("⚠️ Tidak ada data untuk menganalisis perubahan persentase.")
+    
     # 4. Fitur Download Laporan PDF
     st.subheader("📥 Unduh Laporan")
     def generate_pdf_report():
@@ -1483,7 +2959,7 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
             elements.append(Spacer(1, 12))
 
             # Tambahkan Tabel Rekapitulasi
-            elements.append(Paragraph(f"4.{idx + 1} Tabel Rekapitulasi - {period}", normal_style))
+            elements.append(Paragraph(f"4.{idx + 1} Tabel Rekapitulasi - {period}",normal_style))
             table_data = [recap_display.columns.tolist()] + recap_display.values.tolist()
             recap_table = Table(table_data)
             recap_table.setStyle(TableStyle([
@@ -1507,7 +2983,7 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
         pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
-    if st.button("Download Laporan PDF"):
+    if st.button("Download Laporan PDF", key="button_download_kek"):
         st.warning("Membuat laporan PDF, harap tunggu...")
         pdf_data = generate_pdf_report()
         st.success("Laporan PDF siap diunduh!")
@@ -1515,7 +2991,8 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
             label="Download Laporan PDF",
             data=pdf_data,
             file_name=f"Laporan_Cakupan_Layanan_KEK_Ibu_Hamil_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf"
+            mime="application/pdf",
+            key="download_button_pdf_kek"
         )
 # ----------------------------- #
 # 🚀 Main Function
@@ -1543,33 +3020,29 @@ def show_dashboard():
         st.error("⚠️ Kolom 'Bulan' tidak ditemukan di dataset!")
         return
 
-    # Sidebar untuk filter
-    with st.sidebar.expander("🔎 Filter Data"):
-        # Filter Tahun
-        tahun_options = ["All"] + sorted(df['Tahun'].dropna().unique().astype(str).tolist())
-        tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
-
-        # Filter Jenis Laporan
-        jenis_laporan = st.radio("📊 Jenis Laporan", ["Bulanan", "Tahunan"])
-
-        # Filter Bulan atau Triwulan
-        if jenis_laporan == "Bulanan":
-            bulan_options = ["All"] + [str(i) for i in range(1, 13)]
-            periode_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
-            periode_type = "Bulan"
-        else:  # Tahunan
-            triwulan_options = ["All", "Triwulan 1", "Triwulan 2", "Triwulan 3", "Triwulan 4"]
-            periode_filter = st.selectbox("📅 Pilih Triwulan", options=triwulan_options)
-            periode_type = "Triwulan"
-
-        # Filter Puskesmas
-        puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique().tolist()))
-        
-        # Filter Kelurahan
-        kelurahan_options = ["All"]
-        if puskesmas_filter != "All":
-            kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique().tolist())
-        kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
+    # 🔎 Filter Data (di main page)
+    st.subheader("🔎 Filter Data")
+    with st.container():
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 1])
+        with col1:
+            tahun_options = ["All"] + sorted(df['Tahun'].dropna().unique().astype(str).tolist())
+            tahun_filter = st.selectbox("📅 Pilih Tahun", options=tahun_options)
+        with col2:
+            jenis_laporan = st.selectbox("📊 Jenis Laporan", ["Bulanan", "Tahunan"])
+        with col3:
+            if jenis_laporan == "Bulanan":
+                periode_filter = st.selectbox("📅 Pilih Bulan", ["All"] + [str(i) for i in range(1, 13)])
+                periode_type = "Bulan"
+            else:
+                periode_filter = st.selectbox("📅 Pilih Triwulan", ["Triwulan 1", "Triwulan 2", "Triwulan 3", "Triwulan 4"])
+                periode_type = "Triwulan"
+        with col4:
+            puskesmas_filter = st.selectbox("🏥 Pilih Puskesmas", ["All"] + sorted(desa_df['Puskesmas'].unique().tolist()))
+        with col5:
+            kelurahan_options = ["All"]
+            if puskesmas_filter != "All":
+                kelurahan_options += sorted(desa_df[desa_df['Puskesmas'] == puskesmas_filter]['Kelurahan'].unique().tolist())
+            kelurahan_filter = st.selectbox("🏡 Pilih Kelurahan", options=kelurahan_options)
 
     # Inisialisasi filtered_df
     filtered_df = df.copy()
@@ -1606,34 +3079,40 @@ def show_dashboard():
     if kelurahan_filter != "All" and 'Kelurahan' in filtered_df.columns:
         filtered_df = filtered_df[filtered_df['Kelurahan'] == kelurahan_filter]
 
-    # Tampilkan data terfilter
-    st.subheader("📝 Data Terfilter")
-    if filtered_df.empty:
-        st.warning("⚠️ Tidak ada data yang sesuai dengan filter.")
-    else:
-        st.dataframe(filtered_df, use_container_width=True)
+    # 📂 Pilih Dashboard
+    st.subheader("📂 Pilih Dashboard")
+    tab1, tab2 = st.tabs(["📊 Kelengkapan Data Laporan", "📈 Analisis Indikator Ibu Hamil"])
 
-    # Menu sidebar untuk analisis (tetap sama)
-    menu = st.sidebar.radio("📂 Pilih Dashboard", ["📊 Kelengkapan Data", "📈 Analisis Indikator Ibu Hamil"])
-
-    if menu == "📊 Kelengkapan Data":
-        sub_menu = st.sidebar.radio("🔍 Pilih Analisis", ["✅ Compliance Rate", "📋 Completeness Rate"])
-        if sub_menu == "✅ Compliance Rate":
+    # Tab 1: Kelengkapan Data Laporan
+    with tab1:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2 = st.tabs(["✅ Compliance Rate", "📋 Completeness Rate"])
+        with subtab1:
             compliance_rate(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
-        elif sub_menu == "📋 Completeness Rate":
+        with subtab2:
             completeness_rate(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
-    elif menu == "📈 Analisis Indikator Ibu Hamil":
-        sub_analisis = st.sidebar.radio("📊 Pilih Sub Analisis", [
+
+    # Tab 2: Analisis Indikator Ibu Hamil
+    with tab2:
+        st.subheader("🔍 Pilih Analisis")
+        subtab1, subtab2, subtab3 = st.tabs([
             "🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia",
             "💊 Cakupan Suplementasi Gizi Ibu Hamil",
             "📉 Cakupan Layanan Kesehatan Ibu Hamil KEK"
         ])
-        if sub_analisis == "🩺 Cakupan Layanan Kesehatan Ibu Hamil Anemia":
+        with subtab1:
             cakupan_layanan_anemia_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type)
-        elif sub_analisis == "💊 Cakupan Suplementasi Gizi Ibu Hamil":
-            cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
-        elif sub_analisis == "📉 Cakupan Layanan Kesehatan Ibu Hamil KEK":
-            cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter)
+        with subtab2:
+            cakupan_suplementasi_gizi_ibu_hamil(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type)
+        with subtab3:
+            cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter, puskesmas_filter, kelurahan_filter, periode_type)
+
+    # Tampilkan data terfilter
+        st.subheader("📝 Data Terfilter")
+        if filtered_df.empty:
+            st.warning("⚠️ Tidak ada data yang sesuai dengan filter.")
+        else:
+            st.dataframe(filtered_df, use_container_width=True)
 
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
