@@ -1133,6 +1133,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Jumlah_Bayi_usia_6_bulan": "sum",
         "Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam": "sum",
         "Jumlah_Bayi_usia_0-5_bulan_yang_direcall": "sum",
+        "Jumlah_anak_usia_6-23_bulan": "sum",
         "Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara": "sum",
         "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai": "sum",
         "Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara": "sum",
@@ -1150,6 +1151,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Jumlah_Bayi_usia_6_bulan": "sum",
             "Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam": "sum",
             "Jumlah_Bayi_usia_0-5_bulan_yang_direcall": "sum",
+            "Jumlah_anak_usia_6-23_bulan": "sum",
             "Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara": "sum",
             "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai": "sum",
             "Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara": "sum",
@@ -1173,6 +1175,10 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
     current_df["Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)"] = current_df.apply(
         lambda x: (x["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"] / x["Jumlah_Bayi_usia_0-5_bulan"] * 100)
         if x["Jumlah_Bayi_usia_0-5_bulan"] != 0 else 0, axis=1
+    ).round(2)
+    current_df["Metrik Anak Usia 6-23 Bulan Di Wawancarai"] = current_df.apply(
+        lambda x: (x["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"] / x["Jumlah_anak_usia_6-23_bulan"] * 100)
+        if x["Jumlah_anak_usia_6-23_bulan"] != 0 else 0, axis=1
     ).round(2)
     current_df["Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)"] = current_df.apply(
         lambda x: (x["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"] / x["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"] * 100)
@@ -1205,6 +1211,10 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             lambda x: (x["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"] / x["Jumlah_Bayi_usia_0-5_bulan"] * 100)
             if x["Jumlah_Bayi_usia_0-5_bulan"] != 0 else 0, axis=1
         ).round(2)
+        previous_agg_df["Metrik Anak Usia 6-23 Bulan Di Wawancarai"] = previous_agg_df.apply(
+            lambda x: (x["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"] / x["Jumlah_anak_usia_6-23_bulan"] * 100)
+            if x["Jumlah_anak_usia_6-23_bulan"] != 0 else 0, axis=1
+        ).round(2)
         previous_agg_df["Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)"] = previous_agg_df.apply(
             lambda x: (x["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"] / x["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"] * 100)
             if x["Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"] != 0 else 0, axis=1
@@ -1225,6 +1235,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)",
         "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)",
         "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)",
+        "Metrik Anak Usia 6-23 Bulan Di Wawancarai",
         "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)",
         "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)",
         "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)",
@@ -1240,6 +1251,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         total_recall_asi = current_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum()
         total_recall = current_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum()
         total_bayi_05 = current_df["Jumlah_Bayi_usia_0-5_bulan"].sum()
+        total_anak_6_23 = current_df["Jumlah_anak_usia_6-23_bulan"].sum()
         total_makanan_5kelompok = current_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum()
         total_telur_ikan_daging = current_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum()
         total_mpasi_baik = current_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum()
@@ -1253,6 +1265,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         prev_total_recall_asi = previous_agg_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum() if not previous_agg_df.empty else 0
         prev_total_recall = previous_agg_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum() if not previous_agg_df.empty else 0
         prev_total_bayi_05 = previous_agg_df["Jumlah_Bayi_usia_0-5_bulan"].sum() if not previous_agg_df.empty else 0
+        prev_total_anak_6_23 = previous_agg_df["Jumlah_anak_usia_6-23_bulan"].sum() if not previous_agg_df.empty else 0
         prev_total_makanan_5kelompok = previous_agg_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum() if not previous_agg_df.empty else 0
         prev_total_telur_ikan_daging = previous_agg_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum() if not previous_agg_df.empty else 0
         prev_total_mpasi_baik = previous_agg_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum() if not previous_agg_df.empty else 0
@@ -1264,6 +1277,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (total_asi_6bulan / total_bayi_6bulan * 100) if total_bayi_6bulan != 0 else 0,
             "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (total_recall_asi / total_recall * 100) if total_recall != 0 else 0,
             "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (total_recall / total_bayi_05 * 100) if total_bayi_05 != 0 else 0,
+            "Metrik Anak Usia 6-23 Bulan Di Wawancarai": (total_diwawancarai /total_anak_6_23 * 100) if total_anak_6_23 != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (total_makanan_5kelompok / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (total_telur_ikan_daging / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (total_mpasi_baik / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
@@ -1273,6 +1287,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (prev_total_asi_6bulan / prev_total_bayi_6bulan * 100) if prev_total_bayi_6bulan != 0 else None,
             "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (prev_total_recall_asi / prev_total_recall * 100) if prev_total_recall != 0 else None,
             "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (prev_total_recall / prev_total_bayi_05 * 100) if prev_total_bayi_05 != 0 else None,
+            "Metrik Anak Usia 6-23 Bulan Di Wawancarai": (prev_total_diwawancarai / prev_total_anak_6_23 * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (prev_total_makanan_5kelompok / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (prev_total_telur_ikan_daging / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (prev_total_mpasi_baik / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
@@ -1287,6 +1302,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         total_recall_asi = selected_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum()
         total_recall = selected_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum()
         total_bayi_05 = selected_df["Jumlah_Bayi_usia_0-5_bulan"].sum()
+        total_anak_6_23 = selected_df["Jumlah_anak_usia_6-23_bulan"].sum()
         total_makanan_5kelompok = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum()
         total_telur_ikan_daging = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum()
         total_mpasi_baik = selected_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum()
@@ -1301,6 +1317,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         prev_total_recall_asi = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam"].sum() if not selected_prev_df.empty else 0
         prev_total_recall = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan_yang_direcall"].sum() if not selected_prev_df.empty else 0
         prev_total_bayi_05 = selected_prev_df["Jumlah_Bayi_usia_0-5_bulan"].sum() if not selected_prev_df.empty else 0
+        prev_total_anak_6_23 = selected_prev_df["Jumlah_anak_usia_6-23_bulan"].sum() if not selected_prev_df.empty else 0
         prev_total_makanan_5kelompok = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara"].sum() if not selected_prev_df.empty else 0
         prev_total_telur_ikan_daging = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara"].sum() if not selected_prev_df.empty else 0
         prev_total_mpasi_baik = selected_prev_df["Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik"].sum() if not selected_prev_df.empty else 0
@@ -1312,6 +1329,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (total_asi_6bulan / total_bayi_6bulan * 100) if total_bayi_6bulan != 0 else 0,
             "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (total_recall_asi / total_recall * 100) if total_recall != 0 else 0,
             "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (total_recall / total_bayi_05 * 100) if total_bayi_05 != 0 else 0,
+            "Metrik Anak Usia 6-23 Bulan Di Wawancarai": (total_diwawancarai / total_anak_6_23 * 100) if total_anak_6_23 != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (total_makanan_5kelompok / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (total_telur_ikan_daging / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
             "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (total_mpasi_baik / total_diwawancarai * 100) if total_diwawancarai != 0 else 0,
@@ -1321,6 +1339,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": (prev_total_asi_6bulan / prev_total_bayi_6bulan * 100) if prev_total_bayi_6bulan != 0 else None,
             "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": (prev_total_recall_asi / prev_total_recall * 100) if prev_total_recall != 0 else None,
             "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": (prev_total_recall / prev_total_bayi_05 * 100) if prev_total_bayi_05 != 0 else None,
+            "Metrik Anak Usia 6-23 Bulan Di Wawancarai": (prev_total_diwawancarai / prev_total_anak_6_23 * 100) if prev_total_anak_6_23 != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": (prev_total_makanan_5kelompok / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": (prev_total_telur_ikan_daging / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
             "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": (prev_total_mpasi_baik / prev_total_diwawancarai * 100) if prev_total_diwawancarai != 0 else None,
@@ -1389,6 +1408,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
             'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)': 50,  # Target WHO: 50%
             'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)': 60,  # Target: 60%
             'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)': 70,  # Target: 70%
+            'Metrik Anak Usia 6-23 Bulan Di Wawancarai': 90,  # Target: 90%
             'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)': 40,  # Target WHO: 40%
             'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)': 50,  # Target: 50%
             'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)': 30  # Target: 30%
@@ -1405,6 +1425,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)',
         'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)',
         'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)',
+        'Metrik Anak Usia 6-23 Bulan Di Wawancarai',
         'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)',
         'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)',
         'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)'
@@ -1419,6 +1440,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)': "{:.2f}%",
         'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)': "{:.2f}%",
         'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)': "{:.2f}%",
+        'Metrik Anak Usia 6-23 Bulan Di Wawancarai': "{:.2f}%",
         'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)': "{:.2f}%",
         'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)': "{:.2f}%",
         'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)': "{:.2f}%"
@@ -1442,6 +1464,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": ("Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan", "Jumlah_Bayi_usia_6_bulan"),
         "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam", "Jumlah_Bayi_usia_0-5_bulan_yang_direcall"),
         "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_direcall", "Jumlah_Bayi_usia_0-5_bulan"),
+        "Metrik Anak Usia 6-23 Bulan Di Wawancarai": ("Jumlah_anak_usia_6-23_bulan_yang_diwawancarai", "Jumlah_anak_usia_6-23_bulan"),
         "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
         "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
         "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai")
@@ -1509,6 +1532,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         'Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)',
         'Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)',
         'Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)',
+        'Metrik Anak Usia 6-23 Bulan Di Wawancarai',
         'Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)',
         'Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)',
         'Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)'
@@ -1702,6 +1726,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)",
         "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)",
         "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)",
+        "Metrik Anak Usia 6-23 Bulan Di Wawancarai",
         "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)",
         "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)",
         "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)",
@@ -1713,6 +1738,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         "Metrik Jumlah Bayi ASI Eksklusif Sampai 6 Bulan (%)": ("Jumlah_Bayi_Asi_Eksklusif_sampai_6_bulan", "Jumlah_Bayi_usia_6_bulan"),
         "Metrik Bayi 0-5 Bulan ASI Eksklusif Recall 24 Jam (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_mendapat_ASI_Eksklusif_berdasarkan_recall_24_jam", "Jumlah_Bayi_usia_0-5_bulan_yang_direcall"),
         "Metrik Proporsi Sampling Bayi 0-5 Bulan Recall ASI (%)": ("Jumlah_Bayi_usia_0-5_bulan_yang_direcall", "Jumlah_Bayi_usia_0-5_bulan"),
+        "Metrik Anak Usia 6-23 Bulan Di Wawancarai": ("Jumlah_anak_usia_6-23_bulan_yang_diwawancarai", "Jumlah_anak_usia_6-23_bulan"),
         "Metrik Anak Usia 6-23 Bulan Konsumsi 5 dari 8 Kelompok Makanan (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_makanan_dan_minuman_setidaknya_5_dari_8_jenis_kelompok_makanan_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
         "Metrik Anak Usia 6-23 Bulan Konsumsi Telur, Ikan, Daging (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mengkonsumsi_telur_ikan_dan_atau_daging_pada_hari_kemarin_sebelum_wawancara", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai"),
         "Metrik Anak Usia 6-23 Bulan Mendapat MPASI Baik (%)": ("Jumlah_anak_usia_6-23_bulan_yang_mendapat_MPASI_baik", "Jumlah_anak_usia_6-23_bulan_yang_diwawancarai")
