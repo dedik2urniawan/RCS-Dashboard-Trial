@@ -2810,9 +2810,16 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
 
     # 3.6 🔍 Analisis Korelasi Antar Metrik
     st.subheader("🔍 Analisis Korelasi Antar Metrik")
-    corr_df = scope.groupby(["Puskesmas", "Kelurahan"])[list(metrik_data.keys())].mean().reset_index()
+    # Tentukan kolom pengelompokan berdasarkan ketersediaan 'Kelurahan'
+    group_cols = ["Puskesmas"]
+    if 'Kelurahan' in scope.columns:
+        group_cols.append("Kelurahan")
+
+    # Agregasi data berdasarkan kolom yang tersedia
+    corr_df = scope.groupby(group_cols)[list(metrik_data.keys())].mean().reset_index()
     for col in list(metrik_data.keys()):
         corr_df[col] = corr_df[col].round(2)
+
     if len(corr_df) > 1:
         correlation_matrix = corr_df[list(metrik_data.keys())].corr()
         fig_corr = px.imshow(
@@ -2828,7 +2835,9 @@ def cakupan_layanan_kesehatan_ibu_hamil_kek(filtered_df, desa_df, periode_filter
             yaxis_title="Metrik",
             coloraxis_colorbar_title="Koefisien Korelasi"
         )
-        st.plotly_chart(fig_corr, use_container_width=True)
+        # Tambahkan key unik untuk st.plotly_chart
+        chart_key = f"kek_corr_chart_{puskesmas_filter}_{kelurahan_filter}_{periode_filter}"
+        st.plotly_chart(fig_corr, use_container_width=True, key=chart_key)
         st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
     else:
         st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
