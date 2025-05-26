@@ -18,6 +18,9 @@ import rest_api
 import time
 import os
 import datetime
+import numpy as np
+from scipy.stats import pearsonr
+from sklearn.linear_model import LinearRegression  # Tambahkan import ini
 
 # Konfigurasi halaman
 st.set_page_config(page_title="Dashboard RCS", layout="wide")
@@ -632,10 +635,171 @@ def main():
                             'Prevalensi Obesitas': "{:.2f}%"
                         })
                         st.dataframe(styled_df, use_container_width=True)
+
+                        # 1. Tambahkan Catatan Penting di bawah tabel
+                        st.markdown(
+                            """
+                            <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+                                <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 14% untuk Prevalensi Stunting, > 7% untuk Prevalensi Wasting, > 10% untuk Prevalensi Underweight, > 5% untuk Prevalensi Obesitas) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                        # 2. Scatter Plot untuk Korelasi Stunting vs Underweight dan Stunting vs Wasting
+                        st.subheader("🔍 Scatter Plot Korelasi Antar Prevalensi")
+                        # Siapkan data untuk scatter plot (gunakan table_df yang sudah ada)
+                        scatter_df = table_df.copy()
+                        col1, col2 = st.columns(2)
+
+                        # Scatter Plot: Stunting vs Underweight
+                        with col1:
+                            fig_scatter1 = px.scatter(
+                                scatter_df,
+                                x="Prevalensi Stunting",
+                                y="Prevalensi Underweight",
+                                hover_data=["Puskesmas"],
+                                title="Korelasi Prevalensi Stunting vs Underweight",
+                                labels={
+                                    "Prevalensi Stunting": "Prevalensi Stunting (%)",
+                                    "Prevalensi Underweight": "Prevalensi Underweight (%)"
+                                }
+                            )
+                            fig_scatter1.update_traces(marker=dict(size=12, opacity=0.7))
+
+                            # Hitung garis regresi linear
+                            x = scatter_df["Prevalensi Stunting"]
+                            y = scatter_df["Prevalensi Underweight"]
+                            if len(x) > 1 and len(y) > 1:
+                                # Hitung koefisien regresi (m = slope, b = intercept)
+                                m, b = np.polyfit(x, y, 1)
+                                # Tambahkan garis regresi ke scatter plot
+                                fig_scatter1.add_scatter(
+                                    x=x,
+                                    y=m * x + b,
+                                    mode="lines",
+                                    name="Garis Regresi",
+                                    line=dict(color="red", dash="dash")
+                                )
+
+                                # Hitung koefisien korelasi Pearson (r) dan R²
+                                r, _ = pearsonr(x, y)
+                                r2 = r ** 2
+
+                                # Tentukan kekuatan korelasi
+                                r_abs = abs(r)
+                                if r_abs < 0.3:
+                                    strength = "Lemah"
+                                elif 0.3 <= r_abs < 0.7:
+                                    strength = "Sedang"
+                                else:
+                                    strength = "Kuat"
+
+                                # Tambahkan keterangan korelasi dan R²
+                                st.markdown(
+                                    f"""
+                                    <div style="padding: 5px; font-size: 14px; font-family: Arial, sans-serif;">
+                                        <strong>Korelasi:</strong> {strength} (r = {r:.2f})<br>
+                                        <strong>R²:</strong> {r2:.2f}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                            fig_scatter1.update_layout(
+                                xaxis_title="Prevalensi Stunting (%)",
+                                yaxis_title="Prevalensi Underweight (%)",
+                                showlegend=True
+                            )
+                            st.plotly_chart(fig_scatter1, use_container_width=True, key=f"scatter_stunting_underweight_puskesmas_{tahun_puskesmas}_{bulan_puskesmas}_{puskesmas}")
+
+                        # Scatter Plot: Stunting vs Wasting
+                        with col2:
+                            fig_scatter2 = px.scatter(
+                                scatter_df,
+                                x="Prevalensi Stunting",
+                                y="Prevalensi Wasting",
+                                hover_data=["Puskesmas"],
+                                title="Korelasi Prevalensi Stunting vs Wasting",
+                                labels={
+                                    "Prevalensi Stunting": "Prevalensi Stunting (%)",
+                                    "Prevalensi Wasting": "Prevalensi Wasting (%)"
+                                }
+                            )
+                            fig_scatter2.update_traces(marker=dict(size=12, opacity=0.7))
+
+                            # Hitung garis regresi linear
+                            x = scatter_df["Prevalensi Stunting"]
+                            y = scatter_df["Prevalensi Wasting"]
+                            if len(x) > 1 and len(y) > 1:
+                                # Hitung koefisien regresi (m = slope, b = intercept)
+                                m, b = np.polyfit(x, y, 1)
+                                # Tambahkan garis regresi ke scatter plot
+                                fig_scatter2.add_scatter(
+                                    x=x,
+                                    y=m * x + b,
+                                    mode="lines",
+                                    name="Garis Regresi",
+                                    line=dict(color="red", dash="dash")
+                                )
+
+                                # Hitung koefisien korelasi Pearson (r) dan R²
+                                r, _ = pearsonr(x, y)
+                                r2 = r ** 2
+
+                                # Tentukan kekuatan korelasi
+                                r_abs = abs(r)
+                                if r_abs < 0.3:
+                                    strength = "Lemah"
+                                elif 0.3 <= r_abs < 0.7:
+                                    strength = "Sedang"
+                                else:
+                                    strength = "Kuat"
+
+                                # Tambahkan keterangan korelasi dan R²
+                                st.markdown(
+                                    f"""
+                                    <div style="padding: 5px; font-size: 14px; font-family: Arial, sans-serif;">
+                                        <strong>Korelasi:</strong> {strength} (r = {r:.2f})<br>
+                                        <strong>R²:</strong> {r2:.2f}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                            fig_scatter2.update_layout(
+                                xaxis_title="Prevalensi Stunting (%)",
+                                yaxis_title="Prevalensi Wasting (%)",
+                                showlegend=True
+                            )
+                            st.plotly_chart(fig_scatter2, use_container_width=True, key=f"scatter_stunting_wasting_puskesmas_{tahun_puskesmas}_{bulan_puskesmas}_{puskesmas}")
+
+                        # 3. Analisis Korelasi Antar Metrik
+                        st.subheader("🔍 Analisis Korelasi Antar Metrik")
+                        corr_metrics = ["Prevalensi Stunting", "Prevalensi Wasting", "Prevalensi Underweight", "Prevalensi Obesitas"]
+                        corr_df = scatter_df[corr_metrics]
+                        if len(corr_df) > 1:
+                            correlation_matrix = corr_df.corr()
+                            fig_corr = px.imshow(
+                                correlation_matrix,
+                                text_auto=True,
+                                aspect="auto",
+                                title="Matriks Korelasi Antar Metrik Prevalensi Gizi",
+                                color_continuous_scale="RdBu",
+                                range_color=[-1, 1]
+                            )
+                            fig_corr.update_layout(
+                                xaxis_title="Metrik",
+                                yaxis_title="Metrik",
+                                coloraxis_colorbar_title="Koefisien Korelasi"
+                            )
+                            st.plotly_chart(fig_corr, use_container_width=True, key=f"corr_matrix_puskesmas_{tahun_puskesmas}_{bulan_puskesmas}_{puskesmas}")
+                            st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+                        else:
+                            st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
                     else:
                         st.warning("⚠️ Data untuk analisis level Puskesmas tidak tersedia.")
 
-                # Tab 2: Analisis Level Kelurahan
                 with tab2:
                     # Filter untuk level Kelurahan (dipindahkan ke dalam tab)
                     st.subheader("Filter Data Level Kelurahan")
@@ -709,6 +873,168 @@ def main():
                             'Prevalensi Obesitas': "{:.2f}%"
                         })
                         st.dataframe(styled_df, use_container_width=True)
+
+                        # 1. Tambahkan Catatan Penting di bawah tabel
+                        st.markdown(
+                            """
+                            <div style="background-color: #ADD8E6; padding: 10px; border-radius: 5px; color: black; font-size: 14px; font-family: Arial, sans-serif;">
+                                <strong>Catatan Penting:</strong> Nilai outlier atau melebihi target (misalnya > 14% untuk Prevalensi Stunting, > 7% untuk Prevalensi Wasting, > 10% untuk Prevalensi Underweight, > 5% untuk Prevalensi Obesitas) telah dihighlight <span style="color: #FF6666; font-weight: bold;">Warna Merah</span>. Untuk analisis lebih lanjut dan koreksi data, mohon dilakukan pemeriksaan pada <strong>Menu Daftar Entry</strong> di masing-masing Indikator Balita Gizi.
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+
+                        # 2. Scatter Plot untuk Korelasi Stunting vs Underweight dan Stunting vs Wasting
+                        st.subheader("🔍 Scatter Plot Korelasi Antar Prevalensi")
+                        # Siapkan data untuk scatter plot (gunakan table_df yang sudah ada)
+                        scatter_df = table_df.copy()
+                        col1, col2 = st.columns(2)
+
+                        # Scatter Plot: Stunting vs Underweight
+                        with col1:
+                            fig_scatter1 = px.scatter(
+                                scatter_df,
+                                x="Prevalensi Stunting",
+                                y="Prevalensi Underweight",
+                                hover_data=["Kelurahan"],
+                                title="Korelasi Prevalensi Stunting vs Underweight",
+                                labels={
+                                    "Prevalensi Stunting": "Prevalensi Stunting (%)",
+                                    "Prevalensi Underweight": "Prevalensi Underweight (%)"
+                                }
+                            )
+                            fig_scatter1.update_traces(marker=dict(size=12, opacity=0.7))
+
+                            # Hitung garis regresi linear
+                            x = scatter_df["Prevalensi Stunting"]
+                            y = scatter_df["Prevalensi Underweight"]
+                            if len(x) > 1 and len(y) > 1:
+                                # Hitung koefisien regresi (m = slope, b = intercept)
+                                m, b = np.polyfit(x, y, 1)
+                                # Tambahkan garis regresi ke scatter plot
+                                fig_scatter1.add_scatter(
+                                    x=x,
+                                    y=m * x + b,
+                                    mode="lines",
+                                    name="Garis Regresi",
+                                    line=dict(color="red", dash="dash")
+                                )
+
+                                # Hitung koefisien korelasi Pearson (r) dan R²
+                                r, _ = pearsonr(x, y)
+                                r2 = r ** 2
+
+                                # Tentukan kekuatan korelasi
+                                r_abs = abs(r)
+                                if r_abs < 0.3:
+                                    strength = "Lemah"
+                                elif 0.3 <= r_abs < 0.7:
+                                    strength = "Sedang"
+                                else:
+                                    strength = "Kuat"
+
+                                # Tambahkan keterangan korelasi dan R²
+                                st.markdown(
+                                    f"""
+                                    <div style="padding: 5px; font-size: 14px; font-family: Arial, sans-serif;">
+                                        <strong>Korelasi:</strong> {strength} (r = {r:.2f})<br>
+                                        <strong>R²:</strong> {r2:.2f}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                            fig_scatter1.update_layout(
+                                xaxis_title="Prevalensi Stunting (%)",
+                                yaxis_title="Prevalensi Underweight (%)",
+                                showlegend=True
+                            )
+                            st.plotly_chart(fig_scatter1, use_container_width=True, key=f"scatter_stunting_underweight_kelurahan_{tahun_kelurahan}_{bulan_kelurahan}_{puskesmas_kelurahan}_{kelurahan}")
+
+                        # Scatter Plot: Stunting vs Wasting
+                        with col2:
+                            fig_scatter2 = px.scatter(
+                                scatter_df,
+                                x="Prevalensi Stunting",
+                                y="Prevalensi Wasting",
+                                hover_data=["Kelurahan"],
+                                title="Korelasi Prevalensi Stunting vs Wasting",
+                                labels={
+                                    "Prevalensi Stunting": "Prevalensi Stunting (%)",
+                                    "Prevalensi Wasting": "Prevalensi Wasting (%)"
+                                }
+                            )
+                            fig_scatter2.update_traces(marker=dict(size=12, opacity=0.7))
+
+                            # Hitung garis regresi linear
+                            x = scatter_df["Prevalensi Stunting"]
+                            y = scatter_df["Prevalensi Wasting"]
+                            if len(x) > 1 and len(y) > 1:
+                                # Hitung koefisien regresi (m = slope, b = intercept)
+                                m, b = np.polyfit(x, y, 1)
+                                # Tambahkan garis regresi ke scatter plot
+                                fig_scatter2.add_scatter(
+                                    x=x,
+                                    y=m * x + b,
+                                    mode="lines",
+                                    name="Garis Regresi",
+                                    line=dict(color="red", dash="dash")
+                                )
+
+                                # Hitung koefisien korelasi Pearson (r) dan R²
+                                r, _ = pearsonr(x, y)
+                                r2 = r ** 2
+
+                                # Tentukan kekuatan korelasi
+                                r_abs = abs(r)
+                                if r_abs < 0.3:
+                                    strength = "Lemah"
+                                elif 0.3 <= r_abs < 0.7:
+                                    strength = "Sedang"
+                                else:
+                                    strength = "Kuat"
+
+                                # Tambahkan keterangan korelasi dan R²
+                                st.markdown(
+                                    f"""
+                                    <div style="padding: 5px; font-size: 14px; font-family: Arial, sans-serif;">
+                                        <strong>Korelasi:</strong> {strength} (r = {r:.2f})<br>
+                                        <strong>R²:</strong> {r2:.2f}
+                                    </div>
+                                    """,
+                                    unsafe_allow_html=True
+                                )
+
+                            fig_scatter2.update_layout(
+                                xaxis_title="Prevalensi Stunting (%)",
+                                yaxis_title="Prevalensi Wasting (%)",
+                                showlegend=True
+                            )
+                            st.plotly_chart(fig_scatter2, use_container_width=True, key=f"scatter_stunting_wasting_kelurahan_{tahun_kelurahan}_{bulan_kelurahan}_{puskesmas_kelurahan}_{kelurahan}")
+
+                        # 3. Analisis Korelasi Antar Metrik
+                        st.subheader("🔍 Analisis Korelasi Antar Metrik")
+                        corr_metrics = ["Prevalensi Stunting", "Prevalensi Wasting", "Prevalensi Underweight", "Prevalensi Obesitas"]
+                        corr_df = scatter_df[corr_metrics]
+                        if len(corr_df) > 1:
+                            correlation_matrix = corr_df.corr()
+                            fig_corr = px.imshow(
+                                correlation_matrix,
+                                text_auto=True,
+                                aspect="auto",
+                                title="Matriks Korelasi Antar Metrik Prevalensi Gizi",
+                                color_continuous_scale="RdBu",
+                                range_color=[-1, 1]
+                            )
+                            fig_corr.update_layout(
+                                xaxis_title="Metrik",
+                                yaxis_title="Metrik",
+                                coloraxis_colorbar_title="Koefisien Korelasi"
+                            )
+                            st.plotly_chart(fig_corr, use_container_width=True, key=f"corr_matrix_kelurahan_{tahun_kelurahan}_{bulan_kelurahan}_{puskesmas_kelurahan}_{kelurahan}")
+                            st.markdown("**Catatan:** Nilai mendekati 1 atau -1 menunjukkan korelasi kuat (positif atau negatif), sementara 0 menunjukkan tidak ada korelasi.")
+                        else:
+                            st.warning("⚠️ Tidak cukup data untuk menghitung korelasi antar metrik.")
                     else:
                         st.warning("⚠️ Data untuk analisis level Kelurahan tidak tersedia.")
 
