@@ -301,13 +301,22 @@ def create_graph_and_table_puskesmas(df, metric, tahun, bulan, puskesmas):
         '% Data Entry Penimbangan': target_data_entry
     }.get(metric)
 
-    # Membuat grafik
+    # Membuat grafik dengan label persentase
     fig = px.bar(
         agg_df,
         x='Puskesmas',
         y=metric,
         title=f'{metric} per Puskesmas (Tertinggi ke Terendah)',
-        labels={'Puskesmas': 'Puskesmas', metric: metric}
+        labels={'Puskesmas': 'Puskesmas', metric: metric},
+        text=metric,  # Menampilkan nilai metrik sebagai label
+        text_auto='.2f'  # Format angka dengan 2 desimal
+    )
+
+    # Kustomisasi tampilan label
+    fig.update_traces(
+        texttemplate='%{text}%',  # Tambahkan tanda persen (%) di label
+        textposition='auto',  # Posisi label otomatis (di atas bar)
+        textfont=dict(size=14, color="white")  # Ukuran dan warna teks label
     )
 
     # Tambahkan garis target jika ada
@@ -419,13 +428,22 @@ def create_graph_and_table_kelurahan(df, metric, tahun, bulan, puskesmas, kelura
         '% Data Entry Penimbangan': target_data_entry
     }.get(metric)
 
-    # Membuat grafik
+    # Membuat grafik dengan label persentase
     fig = px.bar(
         agg_df,
         x='Kelurahan',
         y=metric,
         title=f'{metric} per Kelurahan (Tertinggi ke Terendah)',
-        labels={'Kelurahan': 'Kelurahan', metric: metric}
+        labels={'Kelurahan': 'Kelurahan', metric: metric},
+        text=metric,  # Menampilkan nilai metrik sebagai label
+        text_auto='.2f'  # Format angka dengan 2 desimal
+    )
+
+    # Kustomisasi tampilan label
+    fig.update_traces(
+        texttemplate='%{text}%',  # Tambahkan tanda persen (%) di label
+        textposition='auto',  # Posisi label otomatis (di atas bar)
+        textfont=dict(size=14, color="white")  # Ukuran dan warna teks label
     )
 
     # Tambahkan garis target jika ada
