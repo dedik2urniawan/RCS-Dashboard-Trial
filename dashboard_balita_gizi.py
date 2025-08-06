@@ -4661,11 +4661,18 @@ def show_dashboard():
                 file_name=f"laporan_tatalaksana_{puskesmas_filter}_{kelurahan_filter}_{time.strftime('%Y%m%d_%H%M%S')}.pdf",
                 mime="application/pdf"
             )
-
+    # Tampilkan data terfilter
+        st.subheader("📝 Data Terfilter")
+        if filtered_df.empty:
+            st.warning("⚠️ Tidak ada data yang sesuai dengan filter.")
+        else:
+            st.dataframe(filtered_df, use_container_width=True)
+            
     st.markdown(
         '<p style="text-align: center; font-size: 12px; color: grey;">'
         'made with ❤️ by <a href="mailto:dedik2urniawan@gmail.com">dedik2urniawan@gmail.com</a>'
         '</p>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
+
     show_dashboard()
