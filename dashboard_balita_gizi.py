@@ -24,6 +24,10 @@ def load_data():
         df = pd.read_sql_query("SELECT * FROM data_balita_gizi", conn)
         desa_df = pd.read_sql_query("SELECT * FROM dataset_desa", conn)
         conn.close()
+        bulan_cols = [c for c in df.columns if c.lower() == "bulan"]
+        if bulan_cols:
+            bcol = bulan_cols[0]
+            df[bcol] = pd.to_numeric(df[bcol], errors="coerce").astype("Int64")
         # Hapus duplikat jika ada
         df = df.drop_duplicates()
         desa_df = desa_df.drop_duplicates()
@@ -4017,7 +4021,11 @@ def show_dashboard():
 
         with col3:
             if jenis_laporan == "Laporan Bulanan":
-                bulan_options = ["All"] + sorted(df['Bulan'].astype(str).unique().tolist() if 'Bulan' in df.columns else [])
+                if 'Bulan' in df.columns:
+                    bulan_unique = pd.to_numeric(df['Bulan'], errors="coerce").dropna().astype(int).unique().tolist()
+                    bulan_options = ["All"] + sorted(bulan_unique)
+                else:
+                    bulan_options = ["All"]
                 bulan_filter = st.selectbox("📅 Pilih Bulan", options=bulan_options)
             else:  # Laporan Tahunan
                 tribulan_options = ["Tribulan I", "Tribulan II", "Tribulan III", "Tribulan IV"]
@@ -4674,5 +4682,4 @@ def show_dashboard():
         '</p>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
-
     show_dashboard()

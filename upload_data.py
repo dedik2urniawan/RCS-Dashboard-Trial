@@ -2,10 +2,23 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 
+def _coerce_month(v):
+    """Terima '9', '9.0', ' 09 ', '9,0', kembalikan int atau NA."""
+    s = str(v).strip()
+    if s == "" or s.lower() in {"nan", "none"}:
+        return pd.NA
+    s = s.replace(",", ".")
+    return int(float(s))
+
+
 # Fungsi untuk menyimpan data ke database
 def save_to_db(df, table_name, db_path="rcs_data.db"):
     try:
         conn = sqlite3.connect(db_path)
+        for col in df.columns:
+            if col.lower() == "bulan":
+                df[col] = df[col].apply(_coerce_month).astype("Int64")
+                break
         df.to_sql(table_name, conn, if_exists='replace', index=False)
         conn.close()
         st.success(f"✅ Data berhasil disimpan ke tabel: {table_name}")
@@ -77,7 +90,8 @@ def upload_file(indicator_name, table_name):
 def show_upload_page():
     st.title("🚀 Unggah Data RCS")
 
-    data_options = {
+    # Kelompok data utama (tetap)
+    data_options_main = {
         "🍼 Indikator Balita Gizi": "data_balita_gizi",
         "📊 Indikator Balita KIA": "data_balita_kia",
         "🤰 Indikator Ibu Hamil": "data_ibuhamil",
@@ -86,13 +100,36 @@ def show_upload_page():
         "🗂️ Dataset Desa (Referensi)": "dataset_desa",
         "📅 Bulan Timbang (Puskesmas)": "data_bultim",
         "📅 Bulan Timbang (Kelurahan)": "data_bultim_kelurahan",
-        "🏫 Dataset Anak Prasekolah": "dataset_apras"  # Opsi baru untuk Anak Prasekolah
+        "🏫 Dataset Anak Prasekolah": "dataset_apras",
     }
 
-    selected_data = st.selectbox("🔍 Pilih Jenis Data untuk Unggah", list(data_options.keys()))
+    # --- BARU: kelompok Analisis PMT & PKMK (6 file) ---
+    data_options_pmt_pkmk = {
+        "🍽️ Analisis PMT - Pantau Balita T (Weight Faltering)": "pmt_pantau_balita_t",
+        "🗂️ Analisis PMT - Riwayat Balita T (Weight Faltering)": "pmt_riwayat_balita_t",
+        "🍽️ Analisis PMT - Pantau Balita BB Kurang (Underweight)": "pmt_pantau_balita_underweight",
+        "🗂️ Analisis PMT - Riwayat Balita BB Kurang (Underweight)": "pmt_riwayat_balita_underweight",
+        "🍽️ Analisis PMT - Pantau Balita Gizi Kurang (Wasted)": "pmt_pantau_balita_wasted",
+        "🗂️ Analisis PMT - Riwayat Balita Gizi Kurang (Wasted)": "pmt_riwayat_balita_wasted",
+    }
 
-    if selected_data:
-        upload_file(selected_data, data_options[selected_data])
+    # UI: pilih kelompok dulu biar rapi
+    group = st.radio("📁 Pilih Kelompok Data", ["📦 Dataset Utama", "🍽️ PMT & PKMK"], horizontal=True)
 
-if __name__ == "__main__":
-    show_upload_page()
+    if group == "📦 Dataset Utama":
+        selected_label = st.selectbox("🔍 Pilih Jenis Data untuk Unggah", list(data_options_main.keys()))
+        if selected_label:
+            upload_file(selected_label, data_options_main[selected_label])
+
+    else:  # PMT & PKMK
+        with st.expander("ℹ️ Petunjuk singkat untuk dataset PMT & PKMK", expanded=False):
+            st.markdown("""
+            - **Pantau** = snapshot pemantauan saat ini (cohort mingguan/bulanan).
+            - **Riwayat** = log historis per individu (untuk analisis pre-post & kepatuhan).
+            - Minimal kolom disarankan (akan kita validasi pada tahap berikutnya):
+              `Tanggal`, `Puskesmas`, `Kelurahan`, `NIK/ID_Anak`, `Nama`, `Usia_bulan`, 
+              `Kategori (T/Underweight/Wasted)`, `Menu/Porsi` atau `Intervensi`, `Kepatuhan (%)`.
+            """)
+        selected_label = st.selectbox("🔍 Pilih Data PMT/PKMK untuk Unggah", list(data_options_pmt_pkmk.keys()))
+        if selected_label:
+            upload_file(selected_label, data_options_pmt_pkmk[selected_label])
