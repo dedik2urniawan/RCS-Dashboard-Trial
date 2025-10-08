@@ -13,6 +13,40 @@ from reportlab.lib.styles import getSampleStyleSheet
 import io
 from plotly.io import to_image
 
+# === Utility: pastikan ada kolom Bulan sebagai bilangan 1-12 ===
+def _ensure_bulan_column(df):
+    df = df.copy()
+    if 'Bulan' in df.columns:
+        # konversi aman ke integer (Int64 boleh ada NA)
+        df['Bulan'] = pd.to_numeric(df['Bulan'], errors='coerce').astype('Int64')
+        return df
+
+    # Fallback #1: parse dari kolom 'periode' (contoh: 'agustus_2025')
+    if 'periode' in df.columns:
+        map_bulan = {
+            'januari': 1, 'februari': 2, 'maret': 3, 'april': 4, 'mei': 5, 'juni': 6,
+            'juli': 7, 'agustus': 8, 'september': 9, 'oktober': 10, 'november': 11, 'desember': 12
+        }
+        def _parse_periode_to_bulan(x):
+            if isinstance(x, str) and '_' in x:
+                nama = x.split('_', 1)[0].strip().lower()
+                return map_bulan.get(nama)
+            return None
+        df['Bulan'] = df['periode'].map(_parse_periode_to_bulan).astype('Int64')
+        if df['Bulan'].notna().any():
+            return df
+
+    # Fallback #2: parse dari tanggal bila ada
+    for tanggal_col in ['Tanggal', 'tgl_kunjungan', 'tgl_pencatatan', 'created_at']:
+        if tanggal_col in df.columns:
+            df['Bulan'] = pd.to_datetime(df[tanggal_col], errors='coerce').dt.month.astype('Int64')
+            if df['Bulan'].notna().any():
+                return df
+
+    # Jika tetap tidak bisa, biarkan tanpa Bulan
+    return df
+
+
 # ----------------------------- #
 # 📥 Fungsi untuk load data
 # ----------------------------- #
@@ -1749,7 +1783,7 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
     }
 
     # Salin filtered_df agar tidak mengubah aslinya
-    trend_data = filtered_df.copy()
+    trend_data = _ensure_bulan_column(filtered_df.copy())
 
     # Hitung metrik persentase untuk setiap baris di trend_data
     for metric, (numerator_col, denominator_col) in metric_to_columns.items():
@@ -1758,16 +1792,23 @@ def asi_exclusive_mpasi_analysis(filtered_df, previous_df, desa_df, puskesmas_fi
         trend_data[metric] = trend_data[metric].replace([float('inf'), float('-inf')], 0).fillna(0)
 
     # Filter dan agregasi data berdasarkan Bulan
-    trend_df = trend_data.groupby("Bulan")[metric_list].mean().reset_index()
-    trend_df = trend_df.melt(
-        id_vars="Bulan",
-        value_vars=metric_list,
-        var_name="Metrik",
-        value_name="Persentase"
-    )
+    group_key = 'Bulan' if ('Bulan' in trend_data.columns and trend_data['Bulan'].notna().any()) else None
+    if group_key:
+        trend_df = trend_data.groupby(group_key)[metric_list].mean(numeric_only=True).reset_index()
+        trend_df = trend_df.melt(
+            id_vars=group_key,
+            value_vars=metric_list,
+            var_name="Metrik",
+            value_name="Persentase"
+        )
+        trend_df["Persentase"] = pd.to_numeric(trend_df["Persentase"], errors='coerce').round(2)
+    else:
+        trend_df = pd.DataFrame()
+        st.info("ℹ️ Tren per-bulan tidak tersedia untuk filter saat ini.")
 
     # Bulatkan kolom Persentase menjadi 2 digit desimal
-    trend_df["Persentase"] = trend_df["Persentase"].round(2)
+    if not trend_df.empty and "Persentase" in trend_df.columns:
+        trend_df["Persentase"] = pd.to_numeric(trend_df["Persentase"], errors="coerce").round(2)
 
     # Tampilkan line chart untuk semua metrik
     if not trend_df.empty:
@@ -2951,22 +2992,25 @@ def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, p
     }
 
     # Salin filtered_df agar tidak mengubah aslinya
-    trend_data = filtered_df.copy()
-
+    trend_data = _ensure_bulan_column(filtered_df.copy())
     # Hitung metrik persentase untuk setiap baris di trend_data
     for metric, (numerator_col, denominator_col) in metrics_list.items():
         trend_data[metric] = (trend_data[numerator_col] / trend_data[denominator_col] * 100).round(2)
-        # Ganti NaN atau inf dengan 0 untuk kebersihan data
         trend_data[metric] = trend_data[metric].replace([float('inf'), float('-inf')], 0).fillna(0)
 
-    # Filter dan agregasi data berdasarkan Bulan
-    trend_df = trend_data.groupby("Bulan")[list(metrics_list.keys())].mean().reset_index()
-    trend_df = trend_df.melt(
-        id_vars="Bulan",
-        value_vars=list(metrics_list.keys()),
-        var_name="Metrik",
-        value_name="Persentase"
-    )
+    group_key = 'Bulan' if ('Bulan' in trend_data.columns and trend_data['Bulan'].notna().any()) else None
+
+    if group_key:
+        trend_df = trend_data.groupby(group_key)[list(metrics_list.keys())].mean(numeric_only=True).reset_index()
+        trend_df = trend_df.melt(
+            id_vars=group_key,
+            value_vars=list(metrics_list.keys()),
+            var_name="Metrik",
+            value_name="Persentase"
+        )
+        trend_df["Persentase"] = pd.to_numeric(trend_df["Persentase"], errors='coerce').round(2)
+    else:
+        trend_df = pd.DataFrame()
 
     # Bulatkan kolom Persentase menjadi 2 digit desimal
     trend_df["Persentase"] = trend_df["Persentase"].round(2)
@@ -3264,6 +3308,8 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
     if filtered_df.empty:
         st.warning("⚠️ Tidak ada data untuk ditampilkan.")
         return {}, pd.DataFrame(), None, None
+    filtered_df = _ensure_bulan_column(filtered_df)
+    previous_df = _ensure_bulan_column(previous_df) if not previous_df.empty else previous_df
 
     # Kolom pengelompokan
     group_columns = ["Puskesmas"] if puskesmas_filter == "All" else ["Puskesmas", "Kelurahan"]
@@ -3443,16 +3489,13 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
 
     # Grafik Perbandingan Vitamin A Februari vs Agustus (hanya jika ada data untuk kedua bulan)
     comparison_fig = None
-    if not filtered_df.empty and "Bulan" in filtered_df.columns:
-        # Periksa apakah ada data untuk Februari dan Agustus
-        has_feb_data = len(filtered_df[filtered_df["Bulan"] == 2]) > 0
-        has_aug_data = len(filtered_df[filtered_df["Bulan"] == 8]) > 0
+    comp_df = _ensure_bulan_column(filtered_df.copy())
+    if not comp_df.empty and 'Bulan' in comp_df.columns and comp_df['Bulan'].notna().any():
+        has_feb_data = (comp_df['Bulan'] == 2).any()
+        has_aug_data = (comp_df['Bulan'] == 8).any()
         if has_feb_data and has_aug_data:
-            # Filter data untuk Februari dan Agustus
-            comparison_df = filtered_df[filtered_df["Bulan"].isin([2, 8])].copy()
+            comparison_df = comp_df[comp_df["Bulan"].isin([2, 8])].copy()
             comparison_df["Bulan"] = comparison_df["Bulan"].map({2: "Februari", 8: "Agustus"})
-            
-            # Agregasi data per bulan
             comparison_agg = comparison_df.groupby(["Bulan"]).agg({
                 "Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A": "sum",
                 "Jumlah_bayi_6-11_bulan": "sum",
@@ -3874,8 +3917,9 @@ def micronutrient_supplementation_analysis(filtered_df, previous_df, desa_df, pu
 
     # 6. 📅 Analisis Perubahan Persentase (Growth/Decline)
     st.subheader("📅 Analisis Perubahan Persentase (Growth/Decline)")
-    if 'Bulan' in filtered_df.columns:
-        trend_df = filtered_df.groupby(["Bulan"]).agg({
+    trend_src = _ensure_bulan_column(filtered_df.copy())
+    if 'Bulan' in trend_src.columns and trend_src['Bulan'].notna().any():
+        trend_df = trend_src.groupby(["Bulan"]).agg({
             "Jumlah_bayi_6-11_bulan_mendapat_Vitamin_A": "sum",
             "Jumlah_bayi_6-11_bulan": "sum",
             "Jumlah_anak_12-59_bulan_mendapat_Vitamin_A": "sum",
@@ -4081,7 +4125,24 @@ def show_dashboard():
                 filtered_df = df.copy()
     else:
         # Filter untuk Laporan Tahunan (agregasi berdasarkan tribulan)
-        if bulan_range is not None and 'Bulan' in df.columns:
+        if bulan_range is not None:
+            # pastikan kolom Bulan ada/terbentuk
+            filtered_df = _ensure_bulan_column(filtered_df)
+            if 'Bulan' in filtered_df.columns and filtered_df['Bulan'].notna().any():
+                available_months = filtered_df['Bulan'].dropna().unique()
+                if not set(bulan_range).intersection(available_months):
+                    st.warning(f"⚠️ Tidak ada data yang sesuai dengan Tribulan yang dipilih. "
+                            f"Dataset hanya tersedia untuk bulan {sorted(available_months)}.")
+                    filtered_df = pd.DataFrame()
+                else:
+                    filtered_df = filtered_df[filtered_df['Bulan'].isin(bulan_range)]
+            else:
+                # Tidak bisa derive Bulan → kosongkan supaya downstream tidak error
+                st.warning("⚠️ Kolom 'Bulan' tidak tersedia dan tidak dapat diturunkan dari data. "
+                        "Tren Tribulan tidak dapat ditampilkan untuk mode Laporan Tahunan.")
+                filtered_df = pd.DataFrame()
+            previous_df = pd.DataFrame()
+
             # Validasi dinamis berdasarkan bulan yang tersedia di dataset
             available_months = df["Bulan"].unique()
             if not set(bulan_range).intersection(available_months):
