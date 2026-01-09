@@ -2812,14 +2812,15 @@ def tatalaksana_balita_bermasalah_gizi_analysis(df, desa_df, bulan_filter_int, p
     )
 
     if outlier_method != "Tidak Ada":
+        from scipy import stats
         for metric in cols_to_check:
-            if metric not in current_df.columns:
+            if metric not in summary_df.columns:
                 continue
 
             if puskesmas_filter == "All":
-                metric_data = current_df[[metric, "Puskesmas"]].dropna()
+                metric_data = summary_df[[metric, "Puskesmas"]].dropna()
             else:
-                metric_data = current_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
+                metric_data = summary_df[[metric, "Puskesmas", "Kelurahan"]].dropna()
 
             if metric_data.empty:
                 continue
