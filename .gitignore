@@ -2,3 +2,5 @@ venv/
 .venv/
 __pycache__/
 .streamlit/secrets.toml
+pizi-database-214206d1d061.json
+pizi-database-c121f9aa5690.json
