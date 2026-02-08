@@ -14,6 +14,7 @@ import dashboard_eppgbm
 import rcs_calc
 import pmt_pkmk
 import composite_analysis
+import dashboard_pkp
 import rest_api
 import time
 import os
@@ -518,23 +519,24 @@ def main():
 
         st.sidebar.header("🔍 Navigasi")
         menu_options = [
-            "📊 Dashboard Overview",
-            "🍼 Indikator Balita",
-            "🤰 Indikator Ibu Hamil",
-            "👧 Indikator Remaja Putri",
-            "📋 EPPGBM",
-            "🧮 RCS Calculator",
-            "🍽️ Analisis PMT & PKMK",
-            "📈 Analisis Composite",
-            "🌐 API Integrasi"
+            "Dashboard Overview",
+            "Indikator Balita",
+            "Indikator Ibu Hamil",
+            "Indikator Remaja Putri",
+            "EPPGBM",
+            "RCS Calculator",
+            "Analisis PMT & PKMK",
+            "PKP (Penilaian Kinerja Puskesmas)",
+            "Analisis Composite",
+            "API Integrasi"
         ]
 
         if st.session_state["role"] == "admin_dinkes":
-            menu_options.append("📂 Upload Data")
+            menu_options.append("Upload Data")
 
         menu = st.sidebar.radio("Pilih Menu:", menu_options, index=0)
 
-        if menu == "📊 Dashboard Overview":
+        if menu == "Dashboard Overview":
             st.subheader("📊 Dashboard Overview: Latar Belakang dan Tujuan Sistem")
 
             st.markdown("""
@@ -1056,7 +1058,7 @@ def main():
                     else:
                         st.warning("⚠️ Data untuk analisis level Kelurahan tidak tersedia.")
 
-        elif menu == "🍼 Indikator Balita":
+        elif menu == "Indikator Balita":
             sub_menu = st.sidebar.radio(
                 "➡️ Pilih Sub-Menu Balita",
                 ["📉 Dashboard Balita Gizi", "🩺 Dashboard Balita KIA"]
@@ -1066,19 +1068,19 @@ def main():
             elif sub_menu == "🩺 Dashboard Balita KIA":
                 dashboard_balita_kia.show_dashboard()
 
-        elif menu == "🤰 Indikator Ibu Hamil":
+        elif menu == "Indikator Ibu Hamil":
             dashboard_ibuhamil.show_dashboard()
 
-        elif menu == "👧 Indikator Remaja Putri":
+        elif menu == "Indikator Remaja Putri":
             dashboard_remaja.show_dashboard()
 
-        elif menu == "📋 EPPGBM":
+        elif menu == "EPPGBM":
             if st.session_state["role"] in ["admin_dinkes", "admin_puskesmas"]:
                 dashboard_eppgbm.show_dashboard()
             else:
                 st.warning("🚫 Anda tidak memiliki akses ke EPPGBM.")
 
-        elif menu == "🧮 RCS Calculator":
+        elif menu == "RCS Calculator":
             sub_menu_rcs = st.sidebar.selectbox(
                 "➡️ Pilih Versi RCS Calculator",
                 ["RCS Calc versi 1.0.0", "RCS Calc versi 1.0.1"],
@@ -1086,16 +1088,19 @@ def main():
             )
             rcs_calc.show_rcs_calculator(sub_menu_rcs)
 
-        elif menu == "🍽️ Analisis PMT & PKMK":
+        elif menu == "Analisis PMT & PKMK":
             pmt_pkmk.show_dashboard()
 
-        elif menu == "📈 Analisis Composite":
+        elif menu == "PKP (Penilaian Kinerja Puskesmas)":
+            dashboard_pkp.show_dashboard()
+
+        elif menu == "Analisis Composite":
             composite_analysis.show_dashboard()
 
-        elif menu == "🌐 API Integrasi":
+        elif menu == "API Integrasi":
             rest_api.show_dashboard()
 
-        elif menu == "📂 Upload Data" and st.session_state["role"] == "admin_dinkes":
+        elif menu == "Upload Data":
             upload_data.show_upload_page()
 
         st.sidebar.markdown("---")

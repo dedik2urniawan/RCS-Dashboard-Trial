@@ -57,7 +57,8 @@ def upload_file(indicator_name, table_name):
             "🗂️ Dataset Desa (Referensi)": "https://drive.google.com/uc?export=download&id=1Cyh8qRXi1nOB4crFgQd4TIqPbUMoZyFw",
             "📅 Bulan Timbang (Puskesmas)": "https://drive.google.com/uc?export=download&id=1ExampleBultimTemplate",  # Ganti dengan link asli
             "📅 Bulan Timbang (Kelurahan)": "https://drive.google.com/uc?export=download&id=1ExampleBultimKelurahanTemplate",  # Ganti dengan link asli
-            "🏫 Dataset Anak Prasekolah": "https://drive.google.com/uc?export=download&id=1ExampleAprasTemplate"  # Ganti dengan link asli
+            "🏫 Dataset Anak Prasekolah": "https://drive.google.com/uc?export=download&id=1ExampleAprasTemplate", # Ganti dengan link asli
+            "PKP (Penilaian Kinerja Puskesmas)": ""  # Tambahkan link template jika tersedia
         }
 
         template_url = template_links.get(indicator_name)
@@ -101,6 +102,7 @@ def show_upload_page():
         "📅 Bulan Timbang (Puskesmas)": "data_bultim",
         "📅 Bulan Timbang (Kelurahan)": "data_bultim_kelurahan",
         "🏫 Dataset Anak Prasekolah": "dataset_apras",
+            "PKP (Penilaian Kinerja Puskesmas)": "data_pkp",
     }
 
     # --- BARU: kelompok Analisis PMT & PKMK (6 file) ---
