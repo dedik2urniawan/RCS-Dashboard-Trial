@@ -142,7 +142,11 @@ def _save_klarifikasi(row_df, db_path="rcs_data.db"):
     )
     conn.execute(
         "DELETE FROM pkp_klarifikasi WHERE tahun = ? AND puskesmas = ? AND indikator = ?",
-        (row_df.loc[0, "Tahun"], row_df.loc[0, "Puskesmas"], row_df.loc[0, "Indikator"]),
+        (
+            row_df.loc[0].get("tahun") or row_df.loc[0].get("Tahun"),
+            row_df.loc[0].get("puskesmas") or row_df.loc[0].get("Puskesmas"),
+            row_df.loc[0].get("indikator") or row_df.loc[0].get("Indikator"),
+        ),
     )
     row_df.to_sql("pkp_klarifikasi", conn, if_exists="append", index=False)
     conn.close()
